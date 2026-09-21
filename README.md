@@ -2,8 +2,11 @@
 
 > Turn an idea into a full, edit-ready architecture plan in the browser.
 
+**Live demo:** <https://MateuszPsuja.github.io/autoarchitect/>
+
 ![Planner screen](./docs/screenshots/planner.png)
 
+[![Live demo](https://img.shields.io/badge/Live%20demo-GitHub%20Pages-blue?logo=github)](https://MateuszPsuja.github.io/autoarchitect/)
 [![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)](https://angular.dev)
 [![LangChain](https://img.shields.io/badge/LangChain.js-1.x-1C3C3C?logo=langchain&logoColor=white)](https://js.langchain.com)
 [![Mermaid](https://img.shields.io/badge/Mermaid-11-FF3670)](https://mermaid.js.org)
