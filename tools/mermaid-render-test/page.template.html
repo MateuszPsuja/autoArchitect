@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mermaid render harness</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: #0f172a; color: #f8fafc; font-family: -apple-system, system-ui, sans-serif; }
+    body { padding: 24px; }
+    h2  { margin: 0 0 12px; font-size: 16px; font-weight: 700; }
+    .panel { background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 24px; margin-bottom: 28px; }
+    svg   { display: block; max-width: 100%; height: auto; }
+    #status { padding: 8px 12px; background: #1e293b; border-radius: 4px; font-family: monospace; font-size: 12px; margin-bottom: 16px; }
+
+/* Only applied in 'after' mode — mirrors the CSS override that used to
+       live in MermaidPreviewComponent.  No-op now that we set the
+       cluster-title font-size as an inline attribute on the SVG <text>
+       element (which works around Angular's emulated encapsulation). */
+    __CLUSTER_CSS__
+  </style>
+</head>
+<body>
+  <div id="status">initialising…</div>
+  <h2>Architecture Blueprint</h2>
+  <div class="panel"><div id="bp"></div></div>
+  <h2>Tech Stack</h2>
+  <div class="panel"><div id="ts"></div></div>
+
+  <script src="/mermaid.min.js"></script>
+  <script>
+    // Init config: mirrors the two mermaid.initialize blocks used by the
+    // render driver.  Selected via ?mode=before|after query param.
+    const mode = new URLSearchParams(location.search).get('mode') || 'after';
+
+    const base = {
+      startOnLoad: false,
+      securityLevel: 'loose',
+      htmlLabels: false,
+    };
+
+    if (mode === 'before') {
+      mermaid.initialize({
+        ...base,
+        flowchart: { htmlLabels: false },
+        theme: 'default',
+      });
+    } else {
+      mermaid.initialize({
+        ...base,
+        flowchart: {
+          htmlLabels: false,
+          padding: 20,
+          subGraphTitleMargin: { top: 22, bottom: 22 },
+          nodeSpacing: 60,
+          rankSpacing: 110,
+        },
+        theme: 'base',
+        themeVariables: {
+          fontSize: '14px',
+          clusterBkgPadding: 16,
+          clusterPadding: 12,
+          nodePadding: 16,
+        },
+      });
+    }
+
+    // Same chart sources as src/app/core/architecture-blueprint.ts.
+    const blueprint = `__BLUEPRINT__`;
+    const techStack = `__TECHSTACK__`;
+
+    async function renderInto(el, chart, prefix) {
+      const id = prefix + '-' + Math.random().toString(36).slice(2, 8);
+      const res = await mermaid.render(id, chart);
+      let svg = typeof res === 'string' ? res : (res.svg ?? res.result ?? '');
+      // Apply the same inline font-size attribute that MermaidPreviewComponent's
+      // applyClusterTitleSizing() does after rendering — only in 'after' mode.
+      if (mode === 'after') {
+        svg = applyClusterTitleSizing(svg);
+        svg = applyEdgeLabelPadding(svg);
+        svg = applyEdgeLabelCentering(svg);
+      }
+      el.innerHTML = svg;
+      // Capture cluster-title computed font-size + the gap between the
+      // cluster rect's top edge and the title text's top edge.
+      const label = el.querySelector('g.cluster-label text');
+      if (label) {
+        const cs = getComputedStyle(label);
+        const fs = cs.fontSize;
+        const attr = label.getAttribute('font-size') || '';
+        document.getElementById('status').dataset.clusterFontSize = fs;
+        document.getElementById('status').dataset.clusterFontSizeAttr = attr;
+        const cluster = el.querySelector('g.cluster');
+        const rect = cluster ? cluster.querySelector('rect') : null;
+        if (rect) {
+          const rb = rect.getBBox();
+          const lb = label.getBBox();
+          // In SVG coordinates (y grows downward), the gap from the
+          // cluster rect's top edge to the title's top edge = lb.y - rb.y.
+          // Use the label group's bbox (the parent <g>) because the title
+          // text element's own bbox can already include its glyph metrics.
+          const labelGroup = label.closest('g.cluster-label') || label.parentElement;
+          const gb = labelGroup.getBBox();
+          const topGap = (gb.y - rb.y).toFixed(1);
+          document.getElementById('status').dataset.titleTopGap = topGap;
+          document.getElementById('status').dataset.clusterRect =
+            `${rb.x.toFixed(1)},${rb.y.toFixed(1)},${rb.width.toFixed(1)},${rb.height.toFixed(1)}`;
+        }
+      }
+      const firstNode = el.querySelector('g.node');
+      if (firstNode) {
+        const text = firstNode.querySelector('text');
+        const shape = firstNode.querySelector('rect, polygon, ellipse');
+        if (text && shape) {
+          const tb = text.getBBox();
+          const sb = shape.getBBox();
+          const padX = ((sb.width  - tb.width)  / 2).toFixed(1);
+          const padY = ((sb.height - tb.height) / 2).toFixed(1);
+          document.getElementById('status').dataset.nodePadding = `${padX}x${padY}`;
+        }
+      }
+    }
+
+    // Mirror of src/app/features/diagrams/mermaid-preview.component.ts →
+    // applyClusterTitleSizing.  Sets font-size + font-weight inline on
+    // every <g class="cluster-label"> <text>.
+    const CLUSTER_TITLE_FONT_SIZE = '21px';
+    const CLUSTER_TITLE_FONT_WEIGHT = '700';
+    function applyClusterTitleSizing(svgString) {
+      const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+      const root = doc.documentElement;
+      if (!root || root.nodeName !== 'svg') return svgString;
+      const labels = root.getElementsByTagNameNS('*', 'g');
+      let touched = false;
+      for (const g of Array.from(labels)) {
+        if (!/(?:^|\s)cluster-label(?:\s|$)/.test(g.getAttribute('class') || '')) continue;
+        const text = g.getElementsByTagNameNS('*', 'text')[0];
+        if (!text) continue;
+        text.setAttribute('font-size', CLUSTER_TITLE_FONT_SIZE);
+        text.setAttribute('font-weight', CLUSTER_TITLE_FONT_WEIGHT);
+        for (const tspan of Array.from(text.getElementsByTagNameNS('*', 'tspan'))) {
+          tspan.setAttribute('font-size', CLUSTER_TITLE_FONT_SIZE);
+          tspan.setAttribute('font-weight', CLUSTER_TITLE_FONT_WEIGHT);
+        }
+        touched = true;
+      }
+      return touched ? new XMLSerializer().serializeToString(root) : svgString;
+    }
+
+    // Mirror of paintLabelGroup() in mermaid-preview.component.ts →
+    // bumps the padding inside edge-label rects so the "uses" /
+    // "implemented by" chips have more breathing room around the text.
+    function applyEdgeLabelPadding(svgString) {
+      const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+      const root = doc.documentElement;
+      if (!root || root.nodeName !== 'svg') return svgString;
+      const padX = 12, padY = 7, radius = 4;
+      const labels = root.getElementsByTagNameNS('*', 'g');
+      let touched = false;
+      for (const g of Array.from(labels)) {
+        if (!/(?:^|\s)edgeLabel(?:\s|$)/.test(g.getAttribute('class') || '')) continue;
+        const rect = g.getElementsByTagNameNS('*', 'rect')[0];
+        if (rect) {
+          const ox = parseFloat(rect.getAttribute('x') || '0');
+          const oy = parseFloat(rect.getAttribute('y') || '0');
+          const ow = parseFloat(rect.getAttribute('width') || '0');
+          const oh = parseFloat(rect.getAttribute('height') || '0');
+          if (ow > 0) { rect.setAttribute('x', String(ox - padX)); rect.setAttribute('width', String(ow + padX * 2)); }
+          if (oh > 0) { rect.setAttribute('y', String(oy - padY)); rect.setAttribute('height', String(oh + padY * 2)); }
+          if (radius > 0) { rect.setAttribute('rx', String(radius)); rect.setAttribute('ry', String(radius)); }
+        }
+        const text = g.getElementsByTagNameNS('*', 'text')[0];
+        if (text) {
+          const oy = parseFloat(text.getAttribute('y') || '0');
+          if (Number.isFinite(oy)) text.setAttribute('y', String(oy + padY));
+        }
+        touched = true;
+      }
+      return touched ? new XMLSerializer().serializeToString(root) : svgString;
+    }
+
+    // Mirror of applyEdgeLabelCentering() in mermaid-preview.component.ts →
+    // counter Mermaid's downward edge-label offset (subGraphTitleTotalMargin/2)
+    // so each label sits at the visual midpoint of the gap between its two
+    // cluster rows instead of being pushed toward the lower cluster.
+    const EDGE_LABEL_VERTICAL_OFFSET = 22;
+    function applyEdgeLabelCentering(svgString) {
+      const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+      const root = doc.documentElement;
+      if (!root || root.nodeName !== 'svg') return svgString;
+      const labels = root.getElementsByTagNameNS('*', 'g');
+      let touched = false;
+      for (const g of Array.from(labels)) {
+        const cls = g.getAttribute('class') || '';
+        if (!/(?:^|\s)edgeLabel(?:\s|$)/.test(cls)) continue;
+        const transform = g.getAttribute('transform') || '';
+        const m = transform.match(/translate\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/);
+        if (!m) continue;
+        const tx = parseFloat(m[1]);
+        const ty = parseFloat(m[2]);
+        g.setAttribute('transform', `translate(${tx}, ${ty - EDGE_LABEL_VERTICAL_OFFSET})`);
+        touched = true;
+      }
+      return touched ? new XMLSerializer().serializeToString(root) : svgString;
+    }
+
+    (async () => {
+      try {
+        await renderInto(document.getElementById('bp'), blueprint, 'bp');
+        await renderInto(document.getElementById('ts'), techStack, 'ts');
+        const ds = document.getElementById('status').dataset;
+        document.getElementById('status').textContent = 'rendered:' + mode
+          + ' fontSize=' + (ds.clusterFontSize || '?')
+          + ' fontAttr=' + (ds.clusterFontSizeAttr || '?')
+          + ' titleTopGap=' + (ds.titleTopGap || '?')
+          + ' nodePad=' + (ds.nodePadding || '?')
+          + ' clusterRect=' + (ds.clusterRect || '?');
+        document.body.dataset.rendered = '1';
+      } catch (err) {
+        document.getElementById('status').textContent = 'error:' + String(err);
+      }
+    })();
+  </script>
+</body>
+</html>

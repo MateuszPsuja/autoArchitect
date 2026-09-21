@@ -1,0 +1,52 @@
+[
+  {
+    "id": "agent-1",
+    "name": "Planner Agent",
+    "description": "Generates project architecture plans and scaffolding.",
+    "skills": [
+      { "id": "skill-1", "name": "Plan Generation", "description": "Create multi-step architectural plans." },
+      { "id": "skill-2", "name": "File Scaffolding", "description": "Produce initial project files and structure." }
+    ]
+  },
+  {
+    "id": "agent-2",
+    "name": "Doc Agent",
+    "description": "Produces documentation and README files.",
+    "skills": [
+      { "id": "skill-3", "name": "Markdown Authoring", "description": "Write human-friendly docs and examples." },
+      { "id": "skill-4", "name": "Spec Extraction", "description": "Extract specs from input and create tasks." }
+    ]
+  },
+  {
+    "id": "agent-3",
+    "name": "Spec Verifier Agent",
+    "description": "Audits generated Plan JSON and the emitted docs/10-architecture/*.md documents for schema errors and GitHub spec-kit plan-template.md compliance.",
+    "skills": [
+      { "id": "skill-5", "name": "spec-kit Compatibility" },
+      { "id": "skill-6", "name": "Error Audit" },
+      { "id": "skill-7", "name": "Mermaid Validation" }
+    ]
+  },
+  {
+    "id": "agent-4",
+    "name": "PDF Creator Agent",
+    "description": "Distils the active architecture Plan into a single concise PDF spec — cover page, executive summary, system context, bounded contexts, per-layer architecture, key domains, key ADRs, and the canonical Mermaid diagrams.",
+    "skills": [
+      { "id": "skill-8", "name": "PDF Document Generation" },
+      { "id": "skill-13", "name": "PDF Composition" },
+      { "id": "skill-14", "name": "PDF Visual Design" },
+      { "id": "skill-15", "name": "PDF Diagram Placement" }
+    ]
+  },
+  {
+    "id": "agent-5",
+    "name": "Specialist Author Agent",
+    "description": "Composes higher-quality architecture diagrams and test specifications on demand, and runs deterministic Stage + Citation audits on the merged plan.",
+    "skills": [
+      { "id": "skill-9", "name": "Diagram Author" },
+      { "id": "skill-10", "name": "Test Author" },
+      { "id": "skill-11", "name": "Stage Audit" },
+      { "id": "skill-12", "name": "Citation / Cross-Ref Audit" }
+    ]
+  }
+]

@@ -1,0 +1,292 @@
+@if (!hasPlan()) {
+  <p-message severity="info" styleClass="w-full">
+    Generate a plan in Planner first, then return here to refine it with AI.
+  </p-message>
+} @else {
+  <section class="refine-shell" aria-label="Refine with AI">
+    <header class="refine-header">
+      <div class="refine-header-info">
+        <h3>Refine with AI</h3>
+        <p class="subtitle">
+          Tell the assistant what to change about the plan. It may ask follow-up questions before
+          applying an instruction to the regenerate pipeline.
+        </p>
+      </div>
+      <div class="refine-actions">
+        @if (sessions().length > 1) {
+          <p-select
+            [options]="sessionOptions()"
+            [ngModel]="store.refinementChat.activeSessionId()"
+            (ngModelChange)="onSessionChange($event)"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select chat"
+            appendTo="body"
+            styleClass="session-select"
+          />
+        }
+        @if (sessions().length > 0) {
+          <p-button
+            type="button"
+            label="Clear"
+            icon="pi pi-trash"
+            severity="secondary"
+            [text]="true"
+            (onClick)="clearAll()"
+          />
+        }
+      </div>
+    </header>
+
+    @if (activeSession(); as session) {
+      <div #transcript class="chat-transcript" role="log" aria-live="polite">
+        @for (turn of session.turns; track trackByTurn($index, turn)) {
+          @if (turn.role === 'user') {
+            <article class="turn-card-wrapper turn--user" data-role="user">
+              <div class="turn-card">
+                <header class="turn-card__header">
+                  <span class="turn-card__role">You</span>
+                </header>
+                <div class="turn-card__body">{{ turn.text }}</div>
+              </div>
+            </article>
+            @if (qaRoundFor(turn.at); as round) {
+              <article
+                class="turn-card-wrapper turn--qa"
+                data-role="qa"
+                [attr.aria-label]="
+                  'Answered ' + round.entries.length + ' of ' + round.total + ' questions'
+                "
+              >
+                <div class="turn-card">
+                  <header class="turn-card__header">
+                    <span class="turn-card__role">Q&amp;A round</span>
+                    <span class="turn-card__meta">
+                      Answered {{ round.entries.length }} of {{ round.total }}
+                    </span>
+                  </header>
+                  <ol class="turn-card__body turn--qa__list">
+                    @for (entry of round.entries; track entry.questionId) {
+                      <li
+                        class="turn--qa__row"
+                        [class.turn--qa__row--skipped]="entry.skipped"
+                        [class.turn--qa__row--active]="
+                          currentQuestion()?.id === entry.questionId
+                        "
+                      >
+                        <span class="turn--qa__q">
+                          Question {{ entry.index + 1 }}. {{ entry.question }}
+                        </span>
+                        <span class="turn--qa__a">{{ entry.value }}</span>
+                        @if (currentQuestion()?.id === entry.questionId) {
+                          <span class="turn--qa__pill">Now answering</span>
+                        }
+                      </li>
+                    }
+                  </ol>
+                </div>
+              </article>
+            }
+          } @else if (turn.kind === 'message') {
+            <article class="turn-card-wrapper turn--assistant" data-role="assistant">
+              <div class="turn-card">
+                <header class="turn-card__header">
+                  <span class="turn-card__icon pi pi-sparkles" aria-hidden="true"></span>
+                  <span class="turn-card__role">Assistant</span>
+                </header>
+                <div
+                  class="turn-card__body turn--assistant__markdown"
+                  [innerHTML]="renderMarkdown(turn.text)"
+                ></div>
+              </div>
+            </article>
+          } @else if (turn.kind === 'finalized') {
+            <article
+              class="turn-card-wrapper turn--finalized"
+              data-role="finalized"
+            >
+              <div class="turn-card">
+                <header class="turn-card__header">
+                  <span class="turn-card__role">Finalized instruction</span>
+                  <p-button
+                    type="button"
+                    icon="pi pi-copy"
+                    severity="secondary"
+                    [text]="true"
+                    pTooltip="Copy instruction"
+                    tooltipPosition="top"
+                    (onClick)="copyInstruction(turn.instruction || '')"
+                  />
+                </header>
+                <pre class="turn-card__body instruction">{{ turn.instruction || '(no instruction)' }}</pre>
+              </div>
+            </article>
+          }
+        }
+
+        @if (thinking()) {
+          <article
+            class="turn-card-wrapper turn--assistant turn--thinking"
+            data-role="thinking"
+            aria-busy="true"
+          >
+            <div class="turn-card">
+              <header class="turn-card__header">
+                <span class="turn-card__icon pi pi-sparkles" aria-hidden="true"></span>
+                <span class="turn-card__role">Assistant is thinking…</span>
+              </header>
+              <div class="turn-card__body">
+                <div class="thinking-lines" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+            </div>
+          </article>
+        }
+
+        @if (session.status === 'ready' && latestFinalizedInstruction(); as instruction) {
+          <article class="turn-card-wrapper turn--ready" data-role="ready">
+            <div class="turn-card">
+              <span class="turn-card__icon pi pi-bolt" aria-hidden="true"></span>
+              <span class="turn-card__body turn--ready__text">
+                Click <strong>Regenerate</strong> to update plan with:
+                <em>{{ instruction }}</em>
+              </span>
+            </div>
+          </article>
+        }
+      </div>
+
+      @if (session.status === 'awaiting_answers' && !thinking()) {
+        <section class="question-panel" aria-live="polite">
+          <header class="question-header">
+            <span class="eyebrow">Question</span>
+            <p-progressbar [value]="progress()" [showValue]="false" aria-label="Question progress" />
+          </header>
+
+@if (answeredQuestions().length > 0) {
+        <ul class="answer-history" aria-label="Already answered">
+          <li class="answer-history__heading">
+            <span class="eyebrow">Already answered ({{ answeredQuestions().length }} of {{ totalQuestions() }})</span>
+          </li>
+          @for (item of answeredQuestions(); track $index) {
+            <li [class.answer-history__item--skipped]="item.skipped" class="answer-history__item">
+              <span class="answer-history__q">{{ item.question }}</span>
+              <span class="answer-history__a">{{ item.value }}</span>
+            </li>
+          }
+        </ul>
+      }
+
+          @if (currentQuestion(); as question) {
+            <p class="question-text">{{ question.question }}</p>
+
+            @if (question.type === 'single_choice') {
+              <div class="option-list" role="group" aria-label="Answer options">
+                @for (option of question.options ?? []; track option) {
+                  <p-button
+                    type="button"
+                    [label]="option"
+                    styleClass="option-button"
+                    [outlined]="!otherMode()"
+                    (onClick)="selectOption(option)"
+                  />
+                }
+                <p-button
+                  type="button"
+                  label="Write answer"
+                  styleClass="option-button"
+                  [outlined]="!otherMode()"
+                  severity="secondary"
+                  (onClick)="showOther()"
+                />
+              </div>
+            }
+
+            @if (question.type === 'free_text' || otherMode()) {
+              <label class="answer-label" [for]="'refine-chat-answer-' + question.id">
+                {{ question.type === 'free_text' ? 'Your answer' : 'Tell us more' }}
+              </label>
+              <textarea
+                pTextarea
+                class="answer-input"
+                [id]="'refine-chat-answer-' + question.id"
+                rows="6"
+                [value]="currentAnswerValue()"
+                (input)="onAnswerInput($event)"
+                placeholder="Type a concise answer…"
+                autocomplete="off"
+              ></textarea>
+            }
+          } @else {
+            <p class="question-text question-text--done">
+              All {{ totalQuestions() }} questions answered — submit to continue.
+            </p>
+          }
+
+          <footer class="question-actions">
+            @if (canSkipRemaining()) {
+              <p-button
+                type="button"
+                label="Skip remaining"
+                severity="secondary"
+                [text]="true"
+                (onClick)="skipRemaining()"
+              />
+            }
+            @if (currentQuestion(); as _question) {
+              <p-button
+                type="button"
+                label="Skip question"
+                severity="secondary"
+                [text]="true"
+                (onClick)="skipCurrent()"
+              />
+            }
+            <p-button
+              type="button"
+              label="Submit answers & continue"
+              icon="pi pi-arrow-right"
+              iconPos="right"
+              [disabled]="!canSubmit()"
+              (onClick)="submitAnswersAndContinue()"
+            />
+          </footer>
+        </section>
+      }
+
+      @if (store.refinementChat.status() === 'error') {
+        <p-message severity="error" styleClass="w-full">
+          {{ store.refinementChat.error() || 'Refinement failed.' }}
+        </p-message>
+      }
+    }
+
+    @if (!questionsVisible()) {
+      <footer class="composer">
+        <textarea
+          pTextarea
+          class="composer__textarea"
+          rows="2"
+          placeholder="Type your refinement request…"
+          [ngModel]="draft()"
+          (ngModelChange)="onDraftChange($event)"
+          [disabled]="composerDisabled()"
+          (keydown)="onTextareaKeydown($event)"
+          autocomplete="off"
+        ></textarea>
+        <div class="composer__actions">
+          <span class="composer__hint">Enter to send · Shift+Enter for newline</span>
+          <p-button
+            type="button"
+            label="Send"
+            icon="pi pi-send"
+            severity="primary"
+            [disabled]="sendDisabled()"
+            (onClick)="sendPrompt()"
+          />
+        </div>
+      </footer>
+    }
+  </section>
+}

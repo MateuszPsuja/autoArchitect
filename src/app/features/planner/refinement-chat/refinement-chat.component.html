@@ -1,0 +1,104 @@
+@if (store.refinement.status() === 'loading_questions') {
+  <section class="refinement-panel" aria-live="polite" aria-busy="true">
+    <div class="panel-heading">
+      <div>
+        <span class="eyebrow">Architecture refinement</span>
+        <h3>Thinking through the important decisions…</h3>
+      </div>
+    </div>
+    <div class="thinking-lines" aria-hidden="true">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <p class="panel-note">A short set of questions will help tailor the plan to your needs.</p>
+  </section>
+} @else if (store.refinement.status() === 'asking' && currentQuestion(); as question) {
+  <section class="refinement-panel" aria-live="polite">
+    <header class="panel-heading">
+      <div>
+        <span class="eyebrow">{{ isRefineMoreQuestion() ? 'Final check' : 'Architecture refinement' }}</span>
+        <h3>
+          Question {{ store.refinement.currentIndex() + 1 }} of
+          {{ store.refinement.questions().length }}
+        </h3>
+      </div>
+    </header>
+
+    <p-progressbar [value]="progress()" [showValue]="false" aria-label="Refinement progress" />
+
+    @if (history().length > 0) {
+      <ul class="history-list" aria-label="Answered questions">
+        @for (item of history(); track $index) {
+          <li class="history-item" [class.history-item--skipped]="item.skipped">
+            <span class="history-q">{{ item.question }}</span>
+            <span class="history-a">{{ item.value }}</span>
+          </li>
+        }
+      </ul>
+    }
+
+    <div class="question-content">
+      <p class="question-text">{{ question.question }}</p>
+
+      @if (question.type === 'single_choice') {
+        <div class="option-list" role="group" aria-label="Answer options">
+          @for (option of question.options ?? []; track option) {
+            <p-button
+              type="button"
+              [label]="option"
+              [outlined]="store.refinement.draftValue() !== option || otherMode()"
+              [severity]="
+                store.refinement.draftValue() === option && !otherMode() ? 'primary' : 'secondary'
+              "
+              styleClass="option-button"
+              (onClick)="selectOption(option)"
+            />
+          }
+          <p-button
+            type="button"
+            label="Write answer"
+            [outlined]="!otherMode()"
+            severity="secondary"
+            styleClass="option-button"
+            (onClick)="showOther()"
+          />
+        </div>
+      }
+
+      @if (question.type === 'free_text' || otherMode()) {
+        <label class="answer-label" [for]="'refinement-answer-' + question.id">
+          {{ question.type === 'free_text' ? 'Your answer' : 'Tell us more' }}
+        </label>
+        <textarea
+          pTextarea
+          class="answer-input"
+          [id]="'refinement-answer-' + question.id"
+          rows="3"
+          [value]="store.refinement.draftValue()"
+          (input)="onDraftInput($event)"
+          placeholder="Type a concise answer…"
+          autocomplete="off"
+        ></textarea>
+      }
+    </div>
+
+    <footer class="panel-actions">
+      <p-button
+        type="button"
+        label="Skip question"
+        severity="secondary"
+        [text]="true"
+        (onClick)="skipQuestion()"
+      />
+      <p-button
+        type="button"
+        label="Submit answer"
+        icon="pi pi-arrow-right"
+        iconPos="right"
+        [disabled]="!canSubmit()"
+        (onClick)="submitAnswer()"
+      />
+    </footer>
+  </section>
+}

@@ -1,0 +1,298 @@
+/* Global Design System — Auto Architect (Sakai-inspired) */
+
+/* PrimeIcons for Sakai-like shell iconography */
+@import 'primeicons/primeicons.css';
+
+:root {
+  /* Layout dimensions */
+  --topbar-height: 4rem;
+  --sidebar-width: 17rem;
+
+  /* Surfaces — dark theme matching Sakai dark */
+  --surface-ground: #09090b;
+  --surface-section: #18181b;
+  --surface-card: #18181b;
+  --surface-overlay: #18181b;
+  --surface-border: #27272a;
+  --surface-hover: rgba(255, 255, 255, 0.04);
+
+  /* Text */
+  --text-color: rgba(255, 255, 255, 0.87);
+  --text-color-secondary: rgba(255, 255, 255, 0.6);
+
+  /* Primary — emerald */
+  --primary-color: #10b981;
+  --primary-color-text: #ffffff;
+
+  /* Radius — flat UI */
+  --border-radius: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+
+  /* Shadows — deeper for dark surfaces */
+  --card-shadow: none;
+  --card-shadow-hover: none;
+  --topbar-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.06);
+
+  /* Legacy vars — remapped to dark equivalents */
+  --bg-base: var(--surface-ground);
+  --bg-surface: var(--surface-card);
+  --bg-elevated: var(--surface-hover);
+  --border: var(--surface-border);
+  --border-subtle: #1e2438;
+  --text-primary: var(--text-color);
+  --text-secondary: var(--text-color-secondary);
+  --text-muted: #64748b;
+
+  /* Accent — emerald */
+  --accent-amber: var(--primary-color);
+  --accent-amber-dim: rgba(16, 185, 129, 0.15);
+  --accent-green: var(--primary-color);
+  --accent-green-dim: rgba(16, 185, 129, 0.15);
+  --accent-red: #f87171;
+
+  --shadow-panel: var(--card-shadow);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--surface-ground);
+  color: var(--text-color);
+  font-family: 'Inter', var(--font-family, sans-serif);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-color);
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+}
+
+/* Global focus ring */
+*:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* ─── Sakai-style global utility classes ─── */
+
+/* Panel / Card — used as .card in all feature components */
+.card {
+  background-color: var(--surface-card);
+  padding: 1.5rem;
+  border-radius: 0;
+  border: 1px solid var(--surface-border);
+  box-shadow: none;
+}
+
+/* Layer tag pill — token-driven dark-theme variants.  The original
+   Tailwind light-theme pastels clashed with --surface-ground; these
+   variants are derived from the primary accent (frontend) and from
+   saturated hues (backend / shared / infrastructure) at low alpha so
+   they remain legible on the dark surface without introducing new
+   colour tokens. */
+.layer-tag {
+  border: 1px solid var(--surface-border);
+  border-radius: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.55rem;
+  text-transform: uppercase;
+}
+
+.layer-tag--frontend {
+  background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--primary-color) 35%, transparent);
+  color: var(--primary-color);
+}
+
+.layer-tag--backend {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+.layer-tag--shared {
+  background: rgba(250, 204, 21, 0.12);
+  border-color: rgba(250, 204, 21, 0.35);
+  color: #facc15;
+}
+
+.layer-tag--infrastructure {
+  background: var(--surface-hover);
+  color: var(--text-color-secondary);
+}
+
+/* router-outlet is an empty placeholder; hide it from grid layout
+   so the routed component becomes a direct grid sibling of the
+   plan-info-bar and shares the same 1.25rem gap. */
+.workspace-stack > router-outlet {
+  display: contents;
+}
+
+/* Section title — uppercase label above groups */
+.section-title {
+  color: var(--text-color-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Eyebrow — single source of truth for the small uppercase caption that
+   sits above a panel / card title. */
+.eyebrow {
+  color: var(--text-color-secondary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Form field label */
+.field-label {
+  color: var(--text-color);
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+/* Muted / secondary text */
+.text-muted {
+  color: var(--text-color-secondary);
+}
+
+/* Pre / code block */
+pre {
+  background: var(--surface-ground);
+  border: 1px solid var(--surface-border);
+  border-radius: 0;
+  color: var(--text-color-secondary);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  overflow: auto;
+  padding: 1rem;
+  white-space: pre-wrap;
+}
+
+/* ─── Utility ─── */
+.sr-only {
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* Thin scrollbars */
+::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ced4da;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
+}
+
+
+
+/* ─── Sakai Form Controls Overrides ─── */
+.p-inputtext, .p-textarea {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  color: var(--text-color);
+  border-radius: 0;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.p-inputtext:enabled:hover, .p-textarea:enabled:hover {
+  border-color: color-mix(in srgb, var(--primary-color) 50%, var(--surface-border));
+}
+
+.p-inputtext:enabled:focus, .p-textarea:enabled:focus {
+  outline: 0 none;
+  outline-offset: 0;
+  box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--primary-color) 20%, transparent);
+  border-color: var(--primary-color);
+}
+
+.p-fluid .p-inputtext, .p-fluid .p-textarea, .w-full {
+  width: 100%;
+}
+
+/* ─── PrimeNG <p-tabs> tuning ─────────────────────────────────────
+   Relies on the Aura preset for color, typography and spacing.
+   The only overrides needed for the editor tabs are:
+     1. the emerald active color so the active tab still matches
+        the rest of the app's accent; and
+     2. flush tab panels (no horizontal padding) so the content
+        inside each tab sits edge-to-edge with the editor column. */
+
+.p-tab.p-tab-active {
+  color: var(--primary-color) !important;
+  font-weight: 600;
+}
+
+.p-tabpanels {
+  background: transparent;
+  padding: 0 !important;
+}
+
+.p-tablist {
+  padding-inline: 0 !important;
+}
+
+.p-tabpanel,
+.p-tabs-panel {
+  padding-inline: 0 !important;
+}
+/* Hide mermaid's bomb-like error-icon SVG paths. Mermaid renders six
+   `.error-icon` <path> elements whenever a diagram fails to parse, plus
+   `.error-text` <text> elements with the diagnostic message. The user
+   wanted the bombs gone — the text body remains visible so failures
+   are still obvious. */
+.error-icon {
+  display: none !important;
+}

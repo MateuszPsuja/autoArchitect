@@ -1,0 +1,62 @@
+:host {
+  display: block;
+}
+
+.plan-info-header {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  line-height: 1.4;
+  padding: 1.5rem;
+}
+
+.plan-info-eyebrow {
+  color: var(--text-color-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-right: 0.75rem;
+  text-transform: uppercase;
+}
+
+.plan-info-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.plan-info-sep {
+  color: var(--text-color-secondary);
+  font-size: 0.75rem;
+}
+
+.plan-info-meta {
+  align-items: center;
+  color: var(--text-color-secondary);
+  display: inline-flex;
+  font-size: 0.8rem;
+  gap: 0.3rem;
+
+  .pi {
+    color: var(--primary-color);
+    font-size: 0.75rem;
+  }
+}
+
+.plan-info-badge {
+  align-items: center;
+  color: var(--orange-500, #f59e0b);
+  display: flex;
+  font-size: 0.8rem;
+  font-weight: 600;
+  gap: 0.3rem;
+
+  .pi {
+    font-size: 0.5rem;
+  }
+}
+
+.ml-auto {
+  margin-left: auto;
+}
