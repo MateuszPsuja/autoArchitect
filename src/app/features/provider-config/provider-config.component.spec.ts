@@ -371,6 +371,11 @@ describe('ProviderConfigComponent', () => {
     expect(maxTokensValue?.textContent?.trim()).toMatch(/4[\s\u00A0,]096/);
   });
 
+  it('exposes the new max-tokens slider bounds (min 4096, max 65536, step 1024)', () => {
+    expect(ProviderConfigComponent.MAX_TOKENS_MIN).toBe(4_096);
+    expect(ProviderConfigComponent.MAX_TOKENS_MAX).toBe(65_536);
+  });
+
   it('shows an existing in-memory provider key when the component is recreated', () => {
     const { component } = setup({ apiKey: 'sk-live-existing-1234567890' });
 

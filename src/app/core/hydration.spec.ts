@@ -252,6 +252,33 @@ describe('hydrateConfig', () => {
     const result = hydrateConfig(raw);
     expect(result.providerApiKeys).not.toHaveProperty('bogus');
   });
+
+  it('clamps defaultMaxTokens into [4096, 65536] on the v3 path', () => {
+    const make = (tokens: number) =>
+      JSON.stringify({
+        v: 3,
+        config: {
+          provider: 'openrouter',
+          providerConfigs: {
+            openrouter: {
+              selectedModel: 'x',
+              customBaseUrl: 'http://x',
+              defaultTemperature: 0.2,
+              defaultMaxTokens: tokens,
+            },
+          },
+        },
+      });
+    expect(
+      hydrateConfig(make(100))!.config!.providerConfigs.openrouter.defaultMaxTokens,
+    ).toBe(4_096);
+    expect(
+      hydrateConfig(make(1_000_000))!.config!.providerConfigs.openrouter.defaultMaxTokens,
+    ).toBe(65_536);
+    expect(
+      hydrateConfig(make(65_536))!.config!.providerConfigs.openrouter.defaultMaxTokens,
+    ).toBe(65_536);
+  });
 });
 
 describe('hydrateSavedPlans', () => {

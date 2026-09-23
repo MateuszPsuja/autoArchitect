@@ -229,7 +229,7 @@ function clampTemperature(value: number): number {
 
 function clampMaxTokens(value: number): number {
   if (!Number.isFinite(value)) return 16_384;
-  return Math.min(32_768, Math.max(512, Math.round(value)));
+  return Math.min(65_536, Math.max(4_096, Math.round(value)));
 }
 
 export interface SavedPlansHydrationResult {

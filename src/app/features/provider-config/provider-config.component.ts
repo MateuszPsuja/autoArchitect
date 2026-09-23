@@ -163,9 +163,9 @@ import { startWith } from 'rxjs';
             <p-slider
               formControlName="defaultMaxTokens"
               inputId="maxTokens"
-              [min]="512"
-              [max]="32768"
-              [step]="128"
+              [min]="4096"
+              [max]="65536"
+              [step]="1024"
               styleClass="w-full"
             />
             <span class="slider-value" data-testid="max-tokens-value">
@@ -314,8 +314,8 @@ export class ProviderConfigComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly modelSelector = viewChild(ModelSelectorComponent);
   private previousProvider!: LlmProvider;
-  protected static readonly MAX_TOKENS_MIN = 512;
-  protected static readonly MAX_TOKENS_MAX = 32768;
+  public static readonly MAX_TOKENS_MIN = 4_096;
+  public static readonly MAX_TOKENS_MAX = 65_536;
 
   protected readonly providerOptions: Array<{ label: string; value: LlmProvider }> = [
     { label: LLM_PROVIDERS.openrouter.label, value: 'openrouter' },
