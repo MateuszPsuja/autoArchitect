@@ -13,8 +13,7 @@ import {
   type RefinementChatTurn,
 } from './refinement-chat.schema';
 
-const PER_ATTEMPT_TIMEOUT_MS = 20_000;
-const TOTAL_TIMEOUT_MS = 30_000;
+const TOTAL_TIMEOUT_MS = 90_000;
 const PLAN_JSON_BYTE_CAP = 12 * 1024;
 const MARKDOWN_BYTE_CAP = 16 * 1024;
 const TRUNCATION_MARKER = '\n[truncated]';
@@ -73,20 +72,14 @@ export class RefinementChatService {
           return { decision: 'finalize', instruction: '' };
         }
 
-        const attemptController = new AbortController();
-        const attemptTimer = setTimeout(
-          () => attemptController.abort(),
-          PER_ATTEMPT_TIMEOUT_MS,
-        );
-
         try {
           const chat = this.llmFactory(config, apiKey, { streaming: false });
           const result =
             attempt === 0
               ? await chat
                   .withStructuredOutput(refinementChatJsonSchema)
-                  .invoke(attemptPrompt, { signal: attemptController.signal })
-              : await chat.invoke(attemptPrompt, { signal: attemptController.signal });
+                  .invoke(attemptPrompt, { signal: totalController.signal })
+              : await chat.invoke(attemptPrompt, { signal: totalController.signal });
           const parsed = this.parseResponse(result);
           if (parsed) {
             return parsed;
@@ -95,8 +88,6 @@ export class RefinementChatService {
           if (totalController.signal.aborted) {
             return { decision: 'finalize', instruction: '' };
           }
-        } finally {
-          clearTimeout(attemptTimer);
         }
       }
 

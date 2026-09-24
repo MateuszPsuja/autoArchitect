@@ -6,6 +6,9 @@ import {
 import { AIMessageChunk, type BaseMessage } from '@langchain/core/messages';
 import { ChatGenerationChunk, type ChatResult } from '@langchain/core/outputs';
 import type { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager';
+import { JsonOutputParser } from '@langchain/core/output_parsers';
+import type { Runnable } from '@langchain/core/runnables';
+import type { BaseLanguageModelInput } from '@langchain/core/language_models/base';
 
 interface MiniMaxChatModelInput extends BaseChatModelParams {
   apiKey: string;
@@ -41,6 +44,23 @@ export class MiniMaxChatModel extends BaseChatModel {
 
   _llmType(): string {
     return 'minimax';
+  }
+
+  override withStructuredOutput<RunOutput extends Record<string, unknown>>(
+    _schema: unknown,
+    _config?: unknown,
+  ): Runnable<BaseLanguageModelInput, RunOutput> {
+    const jsonModeModel = new MiniMaxChatModel({
+      apiKey: this.apiKey,
+      baseURL: this.baseURL,
+      model: this.modelName,
+      temperature: this.temperatureValue,
+      maxCompletionTokens: this.maxCompletionTokensValue,
+      requestTimeoutMs: this.requestTimeoutMsValue,
+      responseFormat: { type: 'json_object' },
+    });
+    const parser = new JsonOutputParser<RunOutput>();
+    return jsonModeModel.pipe(parser);
   }
 
   override lc_namespace: string[] = ['langchain', 'chat_models', 'minimax'];

@@ -12,8 +12,7 @@ import {
 } from './refinement.schema';
 
 const MAX_QUESTIONS = 10;
-const PER_ATTEMPT_TIMEOUT_MS = 20_000;
-const TOTAL_TIMEOUT_MS = 30_000;
+const TOTAL_TIMEOUT_MS = 90_000;
 
 @Injectable({ providedIn: 'root' })
 export class RefinementService {
@@ -52,20 +51,14 @@ export class RefinementService {
           return [];
         }
 
-        const attemptController = new AbortController();
-        const attemptTimer = setTimeout(
-          () => attemptController.abort(),
-          PER_ATTEMPT_TIMEOUT_MS,
-        );
-
         try {
           const chat = this.llmFactory(config, apiKey, { streaming: false });
           const result =
             attempt === 0
               ? await chat
                   .withStructuredOutput(refinementJsonSchema)
-                  .invoke(attemptPrompt, { signal: attemptController.signal })
-              : await chat.invoke(attemptPrompt, { signal: attemptController.signal });
+                  .invoke(attemptPrompt, { signal: totalController.signal })
+              : await chat.invoke(attemptPrompt, { signal: totalController.signal });
           const questions = this.parseQuestions(result);
           if (questions !== null) {
             return questions.slice(0, MAX_QUESTIONS);
@@ -75,8 +68,6 @@ export class RefinementService {
           if (totalController.signal.aborted) {
             return [];
           }
-        } finally {
-          clearTimeout(attemptTimer);
         }
       }
 
