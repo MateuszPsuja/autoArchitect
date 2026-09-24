@@ -24,7 +24,7 @@ import { PlanReviewComponent } from '../planner/plan-review.component';
 function deriveInputFromPlan(plan: Plan): GeneratePromptInput {
   return {
     title: plan.meta.title,
-    idea: plan.meta.summary,
+    idea: plan.meta.userIdea?.trim() || plan.meta.summary,
     technicalConstraints: '',
     nfrs: '',
     hints: '',

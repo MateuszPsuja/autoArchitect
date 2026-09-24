@@ -351,6 +351,7 @@ export const PlanSchema = z.object({
       .optional(),
     technologyHints: z.string().optional(),
     tokenStats: TokenUsageSchema.nullable().optional(),
+    userIdea: z.string().min(1).optional(),
   }),
   systemOverview: z.object({
     purpose: z.string().min(1),
@@ -424,6 +425,7 @@ export const ScaffoldSchema = z.object({
     featureNumber: FeatureNumber,
     featureSlug: FeatureSlug,
     branchName: z.string().regex(BRANCH_NAME_PATTERN).optional(),
+    userIdea: z.string().min(1).optional(),
   }),
   systemOverview: z.object({
     purpose: z.string().min(1),

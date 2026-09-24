@@ -144,6 +144,19 @@ export class PlannerGraphService {
     return this.generateSectioned(input, config);
   }
 
+  /**
+   * Stamps the original user idea onto the plan meta so downstream rendering
+   * (spec.md frontmatter, PDF export) can quote it. Only overwrites if the
+   * caller-supplied idea is non-empty; preserved values on regenerate win so
+   * the field survives across regenerations even when `input.idea` was tweaked.
+   */
+  private stampUserIdea(plan: Plan, idea: string | undefined): Plan {
+    const trimmed = idea?.trim();
+    if (!trimmed) return plan;
+    if (plan.meta.userIdea?.trim() === trimmed) return plan;
+    return { ...plan, meta: { ...plan.meta, userIdea: trimmed } };
+  }
+
   async regenerateStubs(
     input: GeneratePromptInput,
     plan: Plan,
@@ -1012,7 +1025,7 @@ export class PlannerGraphService {
     }
 
     return {
-      plan: verification.plan,
+      plan: this.stampUserIdea(verification.plan, originalInput.idea),
       structuralAdjustments: reconcileResult.adjustments + additionsEntityCount,
       partialFailures,
     };
@@ -1404,7 +1417,7 @@ export class PlannerGraphService {
       });
 
       return {
-        plan: finalPlan,
+        plan: this.stampUserIdea(finalPlan, input.idea),
         error: null,
         attempts: totalAttempts,
       };
@@ -1792,7 +1805,7 @@ export class PlannerGraphService {
 
       emitProgress({ stage: 'done', layers: layerValues, domains: domainValues, tail: tailValue });
 
-      return { plan: finalPlan, error: null, attempts: totalAttempts };
+      return { plan: this.stampUserIdea(finalPlan, input.idea), error: null, attempts: totalAttempts };
     } catch (error) {
       if (isPlannerAbortError(error)) {
         throw error;
@@ -1807,7 +1820,7 @@ export class PlannerGraphService {
         const residual: AuditFinding[] = [];
         this.projectStore.setLastAuditFindings(residual);
         emitProgress({ stage: 'done', layers: layerValues, domains: domainValues, tail: tailValue });
-        return { plan: salvaged, error: null, attempts: totalAttempts };
+        return { plan: this.stampUserIdea(salvaged, input.idea), error: null, attempts: totalAttempts };
       }
       return {
         plan: null,

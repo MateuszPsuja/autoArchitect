@@ -34,11 +34,11 @@ type ExportTab = 'zip' | 'json' | 'pdf';
           <p-tablist>
             <p-tab value="zip">
               <i class="pi pi-file-archive"></i>
-              Files (.zip)
+              spec-kit Export
             </p-tab>
             <p-tab value="json">
               <i class="pi pi-file-export"></i>
-              JSON
+              Internal Plan
             </p-tab>
             <p-tab value="pdf">
               <i class="pi pi-file-pdf"></i>

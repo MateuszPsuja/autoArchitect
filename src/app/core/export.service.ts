@@ -14,7 +14,7 @@ export class ExportService {
 
   async buildZip(plan: Plan, overrides: Record<string, string>): Promise<Blob> {
     const zip = new JSZip();
-    const files = this.markdownRenderer.toMarkdownFiles(plan);
+    const files = this.markdownRenderer.toMarkdownFiles(plan, { includeDirectoryAgents: false });
 
     for (const file of files) {
       zip.file(file.path, overrides[file.path] ?? file.content);

@@ -107,11 +107,46 @@ describe('MarkdownRendererService', () => {
       expect(paths).toContain(`${PREFIX}/docs/60-agent-tasks/00-implementation-order.md`);
     });
 
-    it('returns a per-directory AGENTS.md from architectureLayers.directoryStructure', () => {
-      const files = service.toMarkdownFiles(minimalPlanFixture);
+    it('returns a per-directory AGENTS.md from architectureLayers.directoryStructure when explicitly opted in', () => {
+      const files = service.toMarkdownFiles(minimalPlanFixture, { includeDirectoryAgents: true });
       const paths = files.map((f) => f.path);
 
       expect(paths).toContain('src/app/features/planner/AGENTS.md');
+    });
+
+    it('omits per-directory AGENTS.md by default so the spec-kit zip stays flat under specs/<NNN>-<slug>/', () => {
+      const files = service.toMarkdownFiles(minimalPlanFixture);
+      const paths = files.map((f) => f.path);
+
+      const directoryAgents = paths.filter((p) => /\/AGENTS\.md$/.test(p) && !p.startsWith(`${PREFIX}/`));
+      expect(directoryAgents).toEqual([]);
+    });
+
+    it('strips a leading specs/ from directoryStructure paths so per-directory AGENTS.md lands at zip root (no specs/specs/ doubling)', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        architectureLayers: minimalPlanFixture.architectureLayers.map((l) =>
+          l.id === 'backend'
+            ? {
+                ...l,
+                directoryStructure: [
+                  { path: 'specs/backend/app', description: 'app', agentInstructions: ['do x'] },
+                  { path: 'specs/specs/backend/lib', description: 'lib', agentInstructions: ['do y'] },
+                  { path: 'backend/legacy', description: 'legacy', agentInstructions: ['do z'] },
+                ],
+              }
+            : l,
+        ),
+      };
+      const files = service.toMarkdownFiles(plan, { includeDirectoryAgents: true });
+      const paths = files.map((f) => f.path);
+
+      expect(paths).toContain('backend/app/AGENTS.md');
+      expect(paths).toContain('backend/lib/AGENTS.md');
+      expect(paths).toContain('backend/legacy/AGENTS.md');
+      expect(paths).not.toContain('specs/backend/app/AGENTS.md');
+      expect(paths).not.toContain('specs/specs/backend/lib/AGENTS.md');
+      expect(paths.some((p) => /^specs\/specs\//.test(p))).toBe(false);
     });
 
     it('produces at least 10 files total for the minimal fixture', () => {
@@ -275,7 +310,7 @@ describe('MarkdownRendererService', () => {
     });
 
     it('directory AGENTS.md contains checkbox agent instructions', () => {
-      const files = service.toMarkdownFiles(minimalPlanFixture);
+      const files = service.toMarkdownFiles(minimalPlanFixture, { includeDirectoryAgents: true });
       const agentsFile = files.find((f) => f.path === 'src/app/features/planner/AGENTS.md')!;
 
       expect(agentsFile.content).toContain('- [ ]');
@@ -761,17 +796,17 @@ describe('MarkdownRendererService', () => {
       const { content } = findChecklist(buildCompliantFixture());
 
       expect(content).toContain(
-        '- [x] No `NEEDS CLARIFICATION` markers detected anywhere in the plan — the spec is unambiguous.',
+        '- [x] CHK001 No `NEEDS CLARIFICATION` markers detected anywhere in the plan — the spec is unambiguous.',
       );
       expect(content).toContain(
-        '- [x] All 1 agent task(s) carry a non-empty `acceptanceCriteria[]`.',
+        '- [x] CHK002 All 1 agent task(s) carry a non-empty `acceptanceCriteria[]`.',
       );
-      expect(content).toMatch(/- \[x\] All 2 component\(s\) ship a `tddSpec` \(\d+ BDD scenario\(s\) total/);
+      expect(content).toMatch(/- \[x\] CHK003 All 2 component\(s\) ship a `tddSpec` \(\d+ BDD scenario\(s\) total/);
       expect(content).toContain(
-        '- [x] All 2 architecture layer(s) ship a non-empty `constitutionCheck[]` (NFRs + quality bars).',
+        '- [x] CHK004 All 2 architecture layer(s) ship a non-empty `constitutionCheck[]` (NFRs + quality bars).',
       );
       expect(content).toContain(
-        '- [x] All 2 architecture layer(s) carry the spec-kit section set: `summary`, `technicalContext` (5 rows), `projectStructure`, `complexityTracking`, `domainAreas`.',
+        '- [x] CHK005 All 2 architecture layer(s) carry the spec-kit section set: `summary`, `technicalContext` (5 rows), `projectStructure`, `complexityTracking`, `domainAreas`.',
       );
     });
 
@@ -779,11 +814,11 @@ describe('MarkdownRendererService', () => {
       const { content } = findChecklist(minimalPlanFixture);
 
       expect(content).toContain(
-        '- [x] No `NEEDS CLARIFICATION` markers detected anywhere in the plan — the spec is unambiguous.',
+        '- [x] CHK001 No `NEEDS CLARIFICATION` markers detected anywhere in the plan — the spec is unambiguous.',
       );
-      expect(content).toMatch(/- \[x\] All 1 component\(s\) ship a `tddSpec` \(\d+ BDD scenario\(s\) total/);
-      expect(content).toMatch(/- \[ \] 2 layer\(s\) missing `constitutionCheck\[\]`: `backend`, `frontend`\./);
-      expect(content).toMatch(/- \[ \] 2 layer\(s\) have gaps:/);
+      expect(content).toMatch(/- \[x\] CHK003 All 1 component\(s\) ship a `tddSpec` \(\d+ BDD scenario\(s\) total/);
+      expect(content).toMatch(/- \[ \] CHK004 2 layer\(s\) missing `constitutionCheck\[\]`: `backend`, `frontend`\./);
+      expect(content).toMatch(/- \[ \] CHK005 2 layer\(s\) have gaps:/);
       expect(content).toContain('`backend` is missing: technicalContext, complexityTracking.');
       expect(content).toContain('`frontend` is missing: technicalContext, complexityTracking, domainAreas.');
     });
@@ -800,7 +835,7 @@ describe('MarkdownRendererService', () => {
 
       const { content } = findChecklist(plan);
 
-      expect(content).toMatch(/- \[ \] 1 `NEEDS CLARIFICATION` marker\(s\) detected/);
+      expect(content).toMatch(/- \[ \] CHK001 1 `NEEDS CLARIFICATION` marker\(s\) detected/);
     });
 
     it('flips NFR Coverage to fail when a layer has no constitutionCheck', () => {
@@ -814,7 +849,7 @@ describe('MarkdownRendererService', () => {
 
       const { content } = findChecklist(plan);
 
-      expect(content).toMatch(/- \[ \] 1 layer\(s\) missing `constitutionCheck\[\]`: `frontend`\./);
+      expect(content).toMatch(/- \[ \] CHK004 1 layer\(s\) missing `constitutionCheck\[\]`: `frontend`\./);
     });
 
     it('flips Spec-Kit Compliance to fail when a layer is missing technicalContext or summary', () => {
@@ -829,9 +864,19 @@ describe('MarkdownRendererService', () => {
 
       const { content } = findChecklist(plan);
 
-      expect(content).toMatch(/- \[ \] 2 layer\(s\) have gaps:/);
+      expect(content).toMatch(/- \[ \] CHK005 2 layer\(s\) have gaps:/);
       expect(content).toContain('`backend` is missing: summary, technicalContext, complexityTracking.');
       expect(content).toContain('`frontend` is missing: technicalContext, complexityTracking, domainAreas.');
+    });
+
+    it('numbers CHK### continuously across the four categories (Specification Clarity → Spec-Kit Compliance)', () => {
+      const { content } = findChecklist(minimalPlanFixture);
+      const ids = Array.from(content.matchAll(/(- \[[ x]\] )(CHK\d{3})/g)).map((m) => m[2]);
+      expect(ids.length).toBeGreaterThanOrEqual(5);
+      const sorted = [...ids].sort();
+      expect(ids).toEqual(sorted);
+      expect(ids[0]).toBe('CHK001');
+      expect(new Set(ids).size).toBe(ids.length);
     });
   });
 
@@ -1053,8 +1098,8 @@ describe('MarkdownRendererService', () => {
       const files = service.toMarkdownFiles(plan);
       const tasks = files.find((f) => f.path === `${PREFIX}/tasks.md`)!;
       expect(tasks.content).toContain('(synth)');
-      expect(tasks.content).toMatch(/\(synth\)\s+Wire the image-generation pipeline/);
-      expect(tasks.content).toMatch(/\(synth\)\s+Implement the persona-editing surface/);
+      expect(tasks.content).toMatch(/\(synth\)\s+\[US001\]\s+Wire the image-generation pipeline/);
+      expect(tasks.content).toMatch(/\(synth\)\s+\[US001\]\s+Implement the persona-editing surface/);
     });
 
     it('renders Article 3 with an appended enforcement sentence when the LLM provided a vague line', () => {
@@ -1090,6 +1135,130 @@ describe('MarkdownRendererService', () => {
       const files = service.toMarkdownFiles(plan);
       const constitution = files.find((f) => f.path === '.specify/memory/constitution.md')!;
       expect(constitution.content).toContain('⚠️ PENDING');
+    });
+  });
+
+  describe('spec-kit export compatibility (frontmatter + markers)', () => {
+    function withUserIdea(idea: string): Plan {
+      return { ...minimalPlanFixture, meta: { ...minimalPlanFixture.meta, userIdea: idea } };
+    }
+
+    it('emits **Status**: Draft and **Input**: line in spec.md when userIdea is set', () => {
+      const files = service.toMarkdownFiles(withUserIdea('Build a microblog with image generation.'));
+      const spec = files.find((f) => f.path === `${PREFIX}/spec.md`)!;
+      expect(spec).toBeTruthy();
+      expect(spec.content).toContain('**Status**: Draft');
+      expect(spec.content).toContain('**Input**: User description: "Build a microblog with image generation."');
+      const statusIdx = spec.content.indexOf('**Status**: Draft');
+      const inputIdx = spec.content.indexOf('**Input**:');
+      const featureBranchIdx = spec.content.indexOf('**Feature Branch**');
+      expect(statusIdx).toBeGreaterThan(-1);
+      expect(statusIdx).toBeLessThan(inputIdx);
+      expect(inputIdx).toBeLessThan(featureBranchIdx);
+    });
+
+    it('emits the placeholder **Input**: line when userIdea is missing', () => {
+      const plan = { ...minimalPlanFixture };
+      delete (plan.meta as { userIdea?: string }).userIdea;
+      const files = service.toMarkdownFiles(plan);
+      const spec = files.find((f) => f.path === `${PREFIX}/spec.md`)!;
+      expect(spec.content).toContain(
+        '**Input**: User description: "<original user idea not captured — regenerate to populate>"',
+      );
+      expect(spec.content).toContain('**Status**: Draft');
+    });
+
+    it('escapes embedded double-quotes and backslashes in the user idea', () => {
+      const files = service.toMarkdownFiles(withUserIdea('She said "go" and use C:\\newlines'));
+      const spec = files.find((f) => f.path === `${PREFIX}/spec.md`)!;
+      expect(spec.content).toContain('**Input**: User description: "She said \\"go\\" and use C:\\\\newlines"');
+    });
+
+    it('renders italic *(mandatory)* markers on the Requirements and Success Criteria section headers', () => {
+      const files = service.toMarkdownFiles(minimalPlanFixture);
+      const spec = files.find((f) => f.path === `${PREFIX}/spec.md`)!;
+      expect(spec.content).toContain('## Requirements *(mandatory)*');
+      expect(spec.content).toContain('## Success Criteria *(mandatory)*');
+      expect(spec.content).not.toMatch(/^## Requirements \(mandatory\)$/m);
+      expect(spec.content).not.toMatch(/^## Success Criteria \(mandatory\)$/m);
+    });
+
+    it('emits the __SPECKIT_COMMAND_PLAN__ Note line and Structure Decision line in plan.md', () => {
+      const files = service.toMarkdownFiles(minimalPlanFixture);
+      const plan = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
+      expect(plan.content).toContain(
+        '**Note**: This template is filled in by the `__SPECKIT_COMMAND_PLAN__` command; its definition describes the execution workflow.',
+      );
+      expect(plan.content).toContain(
+        '**Structure Decision**: [Document the selected structure — see the per-layer `projectStructureTree` diagrams in `docs/10-architecture/`]',
+      );
+      const specLinkIdx = plan.content.indexOf('[./spec.md](./spec.md)');
+      const noteIdx = plan.content.indexOf('**Note**:');
+      expect(specLinkIdx).toBeGreaterThan(-1);
+      expect(noteIdx).toBeGreaterThan(specLinkIdx);
+    });
+
+    it('emits the Fill ONLY blockquote intro above Complexity Tracking when tracking is populated', () => {
+      const layer = minimalPlanFixture.architectureLayers[0];
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        architectureLayers: [
+          {
+            ...layer,
+            complexityTracking: [
+              {
+                violation: 'Repository pattern',
+                whyNeeded: 'Testability',
+                simplerAlternativeRejected: 'Direct SQL',
+              },
+            ],
+          },
+          ...minimalPlanFixture.architectureLayers.slice(1),
+        ],
+      };
+      const files = service.toMarkdownFiles(plan);
+      const planMd = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
+      expect(planMd.content).toContain(
+        '> **Fill ONLY if Constitution Check has violations that must be justified**',
+      );
+      const fillIdx = planMd.content.indexOf('Fill ONLY');
+      const tableIdx = planMd.content.indexOf('| Layer | Violation');
+      expect(fillIdx).toBeGreaterThan(-1);
+      expect(tableIdx).toBeGreaterThan(fillIdx);
+    });
+
+    it('does NOT emit the Fill ONLY blockquote when Complexity Tracking is empty', () => {
+      const files = service.toMarkdownFiles(minimalPlanFixture);
+      const planMd = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
+      expect(planMd.content).not.toContain('Fill ONLY');
+    });
+
+    it('emits [US###] bracket tags on the task line in tasks.md (not parenthesised form)', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        agentTasks: [],
+        userStories: [
+          {
+            ...minimalPlanFixture.userStories[0],
+            description:
+              'Wire the image-generation pipeline and support persona-edit so the operator can re-roll.',
+          },
+        ],
+      };
+      const files = service.toMarkdownFiles(plan);
+      const tasks = files.find((f) => f.path === `${PREFIX}/tasks.md`)!;
+      const matches = tasks.content.match(/- \[ \] T\d{3} (?:\[[P]\] |\([a-z-]+\) )?\[[A-Z]{2}\d{3}\] /g);
+      expect(matches).not.toBeNull();
+      expect(matches!.length).toBeGreaterThan(0);
+      expect(tasks.content).not.toMatch(/- \[ \] T\d{3} (?:(?:\[[P]\] |\([a-z-]+\) )?)\(US\d{3}\)/);
+    });
+
+    it('also uses [US###] in the Parallel Example block', () => {
+      const files = service.toMarkdownFiles(minimalPlanFixture);
+      const tasks = files.find((f) => f.path === `${PREFIX}/tasks.md`)!;
+      expect(tasks.content).toContain('T101 [P] [US001] Build the Post aggregate');
+      expect(tasks.content).toContain('T102 [P] [US001] Build the PostRepository');
+      expect(tasks.content).toContain('T103     [US001] Wire the Post REST controller');
     });
   });
 });

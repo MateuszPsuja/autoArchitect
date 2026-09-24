@@ -46,8 +46,9 @@ export class MarkdownRendererService {
     return this.sanitizer.bypassSecurityTrustHtml(safe);
   }
 
-  toMarkdownFiles(plan: Plan): MarkdownFile[] {
+  toMarkdownFiles(plan: Plan, options: { includeDirectoryAgents?: boolean } = {}): MarkdownFile[] {
     const prefix = featureFolder(plan);
+    const includeDirectoryAgents = options.includeDirectoryAgents ?? false;
     const files: MarkdownFile[] = [];
     files.push(this.buildConstitutionFile(plan));
     files.push(...this.buildSpecKitArtefacts(plan, prefix));
@@ -58,7 +59,9 @@ export class MarkdownRendererService {
     files.push(...this.buildDomainFiles(plan, prefix));
     files.push(...this.buildWorkflowFiles(plan, prefix));
     files.push(...this.buildAgentTaskFiles(plan, prefix));
-    files.push(...this.buildDirectoryAgentsFiles(plan));
+    if (includeDirectoryAgents) {
+      files.push(...this.buildDirectoryAgentsFiles(plan));
+    }
     return files.map((f) => ({ ...f, content: this.sanitiseTerminology(f.content) }));
   }
 
@@ -142,9 +145,17 @@ export class MarkdownRendererService {
 
   private buildFeatureSpecMd(plan: Plan): string {
     const branch = plan.meta.branchName ?? branchName(plan);
+    const escapedIdea = (plan.meta.userIdea ?? '')
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    const inputLine = plan.meta.userIdea?.trim()
+      ? `**Input**: User description: "${escapedIdea}"`
+      : '**Input**: User description: "<original user idea not captured — regenerate to populate>"';
     const lines: string[] = [
       `# Feature Specification: ${plan.meta.title}`,
       '',
+      '**Status**: Draft',
+      inputLine,
       `**Feature Branch**: \`${branch}\` · **Generated**: ${plan.meta.generatedAt}`,
       '',
       '> What users need and why. No tech stack, no code.',
@@ -213,7 +224,7 @@ export class MarkdownRendererService {
       }
     }
 
-    lines.push('## Requirements (mandatory)', '');
+    lines.push('## Requirements *(mandatory)*', '');
     lines.push('### Functional Requirements', '');
     if ((plan.functionalRequirements ?? []).length === 0) {
       lines.push('> No functional requirements extracted for this plan yet.', '');
@@ -243,7 +254,7 @@ export class MarkdownRendererService {
       lines.push(...entities, '');
     }
 
-    lines.push('## Success Criteria (mandatory)', '');
+    lines.push('## Success Criteria *(mandatory)*', '');
     lines.push('### Measurable Outcomes', '');
     if ((plan.successCriteria ?? []).length === 0) {
       lines.push('> No success criteria defined yet.', '');
@@ -314,6 +325,8 @@ export class MarkdownRendererService {
       `> ${plan.meta.summary}`,
       '',
       `**Branch**: \`${branch}\` · **Date**: ${plan.meta.generatedAt} · **Spec**: [./spec.md](./spec.md)`,
+      '',
+      '**Note**: This template is filled in by the `__SPECKIT_COMMAND_PLAN__` command; its definition describes the execution workflow.',
       '',
       '## Summary',
       '',
@@ -430,6 +443,11 @@ export class MarkdownRendererService {
     lines.push('```');
     lines.push('');
 
+    lines.push(
+      '**Structure Decision**: [Document the selected structure — see the per-layer `projectStructureTree` diagrams in `docs/10-architecture/`]',
+      '',
+    );
+
     lines.push('## Complexity Tracking', '');
     const tracking = (plan.architectureLayers ?? []).flatMap((l) =>
       (l.complexityTracking ?? []).map((c) => ({ ...c, layerId: l.id })),
@@ -437,6 +455,7 @@ export class MarkdownRendererService {
     if (tracking.length === 0) {
       lines.push('> No constitution violations; standard complexity.', '');
     } else {
+      lines.push('> **Fill ONLY if Constitution Check has violations that must be justified**', '');
       lines.push('| Layer | Violation | Why Needed | Simpler Alternative Rejected |');
       lines.push('|---|---|---|---|');
       for (const row of tracking) {
@@ -794,7 +813,10 @@ export class MarkdownRendererService {
         for (const task of relatedTasks) {
           const idx = (plan.agentTasks ?? []).indexOf(task);
           const parallel = this.canParallelize(task, hintSets, idx);
-          lines.push(`- [ ] ${next()} ${parallel ? '[P] ' : ''}${task.title}`);
+          const storyTags = task.userStoryIds.length > 0
+            ? `${task.userStoryIds.map((id) => `[${id}]`).join(' ')} `
+            : '';
+          lines.push(`- [ ] ${next()} ${parallel ? '[P] ' : ''}${storyTags}${task.title}`);
           lines.push(`  - **Files:** ${task.fileHints.map((f) => `\`${f}\``).join(', ')}`);
           lines.push(
             `  - **User Stories:** ${task.userStoryIds.length > 0 ? task.userStoryIds.map((id) => `\`${id}\`${storiesById.get(id) ? '' : ' (missing)'}`).join(', ') : '_none linked_'}`,
@@ -808,7 +830,10 @@ export class MarkdownRendererService {
           }
         }
         for (const synth of synthetics) {
-          lines.push(`- [ ] ${next()} (synth) ${synth.title}`);
+          const storyTags = synth.userStoryIds.length > 0
+            ? `${synth.userStoryIds.map((id) => `[${id}]`).join(' ')} `
+            : '';
+          lines.push(`- [ ] ${next()} (synth) ${storyTags}${synth.title}`);
           lines.push(`  - **Files:** ${synth.fileHints.map((f) => `\`${f}\``).join(', ')}`);
           lines.push(`  - **User Stories:** ${synth.userStoryIds.map((id) => `\`${id}\``).join(', ')}`);
           lines.push(`  - ${synth.description}`);
@@ -841,9 +866,9 @@ export class MarkdownRendererService {
     lines.push('## Parallel Example', '');
     lines.push('```text');
     lines.push('# Within a User Story phase:');
-    lines.push('T101 [P] (US001) Build the Post aggregate');
-    lines.push('T102 [P] (US001) Build the PostRepository');
-    lines.push('T103     (US001) Wire the Post REST controller (depends on T101, T102)');
+    lines.push('T101 [P] [US001] Build the Post aggregate');
+    lines.push('T102 [P] [US001] Build the PostRepository');
+    lines.push('T103     [US001] Wire the Post REST controller (depends on T101, T102)');
     lines.push('```');
     lines.push('');
     lines.push('## Implementation Strategy', '');
@@ -1068,6 +1093,8 @@ export class MarkdownRendererService {
   }
 
   private buildChecklistMd(plan: Plan): string {
+    let counter = 1;
+    const next = (): string => `CHK${String(counter++).padStart(3, '0')}`;
     const lines: string[] = [
       `# ${plan.meta.title} — spec-kit Compliance Checklist`,
       '',
@@ -1080,12 +1107,12 @@ export class MarkdownRendererService {
     const openQuestions = this.collectOpenQuestions(plan);
     if (openQuestions.length === 0) {
       lines.push(
-        '- [x] No `NEEDS CLARIFICATION` markers detected anywhere in the plan — the spec is unambiguous.',
+        `- [x] ${next()} No \`NEEDS CLARIFICATION\` markers detected anywhere in the plan — the spec is unambiguous.`,
         '',
       );
     } else {
       lines.push(
-        `- [ ] ${openQuestions.length} \`NEEDS CLARIFICATION\` marker(s) detected outside the Open Questions in [\`spec.md\`](./spec.md). Resolve before implementation.`,
+        `- [ ] ${next()} ${openQuestions.length} \`NEEDS CLARIFICATION\` marker(s) detected outside the Open Questions in [\`spec.md\`](./spec.md). Resolve before implementation.`,
         '',
       );
     }
@@ -1094,12 +1121,12 @@ export class MarkdownRendererService {
     const agentTasks = plan.agentTasks ?? [];
     const tasksWithoutAC = agentTasks.filter((t) => !t.acceptanceCriteria || t.acceptanceCriteria.length === 0);
     if (agentTasks.length === 0) {
-      lines.push('- [ ] No `AgentTask`s are defined yet — generate tasks via `/speckit.tasks`.', '');
+      lines.push(`- [ ] ${next()} No \`AgentTask\`s are defined yet — generate tasks via \`/speckit.tasks\`.`, '');
     } else if (tasksWithoutAC.length === 0) {
-      lines.push(`- [x] All ${agentTasks.length} agent task(s) carry a non-empty \`acceptanceCriteria[]\`.`, '');
+      lines.push(`- [x] ${next()} All ${agentTasks.length} agent task(s) carry a non-empty \`acceptanceCriteria[]\`.`, '');
     } else {
       lines.push(
-        `- [ ] ${tasksWithoutAC.length} agent task(s) missing \`acceptanceCriteria[]\`: ${tasksWithoutAC.map((t) => `\`${t.id}\``).join(', ')}.`,
+        `- [ ] ${next()} ${tasksWithoutAC.length} agent task(s) missing \`acceptanceCriteria[]\`: ${tasksWithoutAC.map((t) => `\`${t.id}\``).join(', ')}.`,
         '',
       );
     }
@@ -1112,15 +1139,15 @@ export class MarkdownRendererService {
       0,
     );
     if (allComponents.length === 0) {
-      lines.push('- [ ] No components are defined yet — regenerate to populate BDD Given/When/Then scenarios.', '');
+      lines.push(`- [ ] ${next()} No components are defined yet — regenerate to populate BDD Given/When/Then scenarios.`, '');
     } else if (componentsWithoutTdd.length === 0) {
       lines.push(
-        `- [x] All ${allComponents.length} component(s) ship a \`tddSpec\` (${tddScenarioCount} BDD scenario(s) total — every component has at least one Given/When/Then).`,
+        `- [x] ${next()} All ${allComponents.length} component(s) ship a \`tddSpec\` (${tddScenarioCount} BDD scenario(s) total — every component has at least one Given/When/Then).`,
         '',
       );
     } else {
       lines.push(
-        `- [ ] ${componentsWithoutTdd.length} component(s) missing \`tddSpec\`: ${componentsWithoutTdd.map((c) => `\`${c.id}\``).join(', ')}.`,
+        `- [ ] ${next()} ${componentsWithoutTdd.length} component(s) missing \`tddSpec\`: ${componentsWithoutTdd.map((c) => `\`${c.id}\``).join(', ')}.`,
         '',
       );
     }
@@ -1129,12 +1156,12 @@ export class MarkdownRendererService {
     const layers = plan.architectureLayers ?? [];
     const layersWithoutGates = layers.filter((l) => !(l.constitutionCheck ?? []).length);
     if (layers.length === 0) {
-      lines.push('- [ ] No architecture layers defined.', '');
+      lines.push(`- [ ] ${next()} No architecture layers defined.`, '');
     } else if (layersWithoutGates.length === 0) {
-      lines.push(`- [x] All ${layers.length} architecture layer(s) ship a non-empty \`constitutionCheck[]\` (NFRs + quality bars).`, '');
+      lines.push(`- [x] ${next()} All ${layers.length} architecture layer(s) ship a non-empty \`constitutionCheck[]\` (NFRs + quality bars).`, '');
     } else {
       lines.push(
-        `- [ ] ${layersWithoutGates.length} layer(s) missing \`constitutionCheck[]\`: ${layersWithoutGates.map((l) => `\`${l.id}\``).join(', ')}.`,
+        `- [ ] ${next()} ${layersWithoutGates.length} layer(s) missing \`constitutionCheck[]\`: ${layersWithoutGates.map((l) => `\`${l.id}\``).join(', ')}.`,
         '',
       );
     }
@@ -1156,14 +1183,14 @@ export class MarkdownRendererService {
       }
     }
     if (layers.length === 0) {
-      lines.push('- [ ] No architecture layers defined.', '');
+      lines.push(`- [ ] ${next()} No architecture layers defined.`, '');
     } else if (complianceIssues.length === 0) {
       lines.push(
-        `- [x] All ${layers.length} architecture layer(s) carry the spec-kit section set: \`summary\`, \`technicalContext\` (5 rows), \`projectStructure\`, \`complexityTracking\`, \`domainAreas\`.`,
+        `- [x] ${next()} All ${layers.length} architecture layer(s) carry the spec-kit section set: \`summary\`, \`technicalContext\` (5 rows), \`projectStructure\`, \`complexityTracking\`, \`domainAreas\`.`,
         '',
       );
     } else {
-      lines.push(`- [ ] ${complianceIssues.length} layer(s) have gaps:`, '');
+      lines.push(`- [ ] ${next()} ${complianceIssues.length} layer(s) have gaps:`, '');
       for (const issue of complianceIssues) {
         lines.push(`  - ${issue}`);
       }
@@ -2160,7 +2187,7 @@ export class MarkdownRendererService {
     for (const layer of (plan.architectureLayers ?? [])) {
       for (const dir of (layer.directoryStructure ?? [])) {
         files.push({
-          path: `${dir.path}/AGENTS.md`,
+          path: `${stripExportPrefix(dir.path)}/AGENTS.md`,
           content: this.buildDirectoryAgentsMd(dir, layer.name, plan),
         });
       }
@@ -2220,4 +2247,21 @@ export class MarkdownRendererService {
 
     return lines.join('\n');
   }
+}
+
+/**
+ * Drops the export-bundle's own top-level `specs/` prefix from a
+ * `directoryStructure[].path` before the renderer emits it as a per-directory
+ * `AGENTS.md` file. The LLM sometimes mirrors the `specs/<NNN-slug>/` prefix
+ * into the source-tree paths it produces, which would otherwise double the
+ * prefix in the exported zip (`specs/specs/001-xface/...`). Stripping it here
+ * keeps the per-directory AGENTS.md flat at the zip root regardless of what
+ * the LLM emitted.
+ */
+function stripExportPrefix(path: string): string {
+  let p = path;
+  while (/^specs\//.test(p)) {
+    p = p.replace(/^specs\//, '');
+  }
+  return p;
 }

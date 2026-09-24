@@ -11,10 +11,14 @@ import { exportBaseName } from '../../../core/feature-slug';
   imports: [ButtonModule],
   template: `
     <section class="card export-shell" aria-labelledby="export-zip-heading">
-      <h3 id="export-zip-heading">Files (.zip)</h3>
+      <h3 id="export-zip-heading">spec-kit Export (.zip)</h3>
       <p class="subtitle">
-        A read-only archive of every markdown file in the plan, plus a top-level
-        <code>plan.json</code>.
+        GitHub <a href="https://github.com/github/spec-kit" target="_blank" rel="noopener noreferrer">spec-kit</a>
+        deliverable bundle. Contains the bundle-root
+        <code>plan.json</code>, <code>features.json</code>, and
+        <code>.specify/memory/constitution.md</code>, plus everything under
+        <code>specs/&lt;NNN&gt;-&lt;slug&gt;/</code>. Use this zip when handing the
+        plan to a spec-kit-capable agent or to <code>specify-cli</code>.
       </p>
 
       <ul class="file-list">

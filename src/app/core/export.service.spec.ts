@@ -93,4 +93,40 @@ describe('ExportService', () => {
     const parsed = JSON.parse(planJson) as Plan;
     expect(parsed.meta.tokenStats).toBeNull();
   });
+
+  it('emits spec-kit **Status** + **Input** frontmatter in zipped spec.md when userIdea is set', async () => {
+    const { service } = setup();
+    const idea = 'A planning tool that generates architecture docs from an idea.';
+    const plan: Plan = {
+      ...minimalPlanFixture,
+      meta: { ...minimalPlanFixture.meta, userIdea: idea },
+    };
+    const blob = await service.buildZip(plan, {});
+    const zip = await JSZip.loadAsync(blob);
+    const prefix = featureFolder(plan);
+    const specMd = await zip.file(`${prefix}/spec.md`)!.async('string');
+    expect(specMd).toContain('**Status**: Draft');
+    expect(specMd).toContain(`**Input**: User description: "${idea}"`);
+  });
+
+  it('emits the __SPECKIT_COMMAND_PLAN__ Note line and Structure Decision in zipped plan.md', async () => {
+    const { service } = setup();
+    const blob = await service.buildZip(minimalPlanFixture, {});
+    const zip = await JSZip.loadAsync(blob);
+    const prefix = featureFolder(minimalPlanFixture);
+    const planMd = await zip.file(`${prefix}/plan.md`)!.async('string');
+    expect(planMd).toContain('**Note**: This template is filled in by the `__SPECKIT_COMMAND_PLAN__` command');
+    expect(planMd).toContain('**Structure Decision**:');
+  });
+
+  it('emits [US###] tags and CHK### ids in zipped tasks.md and checklist.md', async () => {
+    const { service } = setup();
+    const blob = await service.buildZip(minimalPlanFixture, {});
+    const zip = await JSZip.loadAsync(blob);
+    const prefix = featureFolder(minimalPlanFixture);
+    const tasksMd = await zip.file(`${prefix}/tasks.md`)!.async('string');
+    const checklistMd = await zip.file(`${prefix}/checklist.md`)!.async('string');
+    expect(tasksMd).toMatch(/T\d{3} \[P?\] \[US\d{3}\]/);
+    expect(checklistMd).toMatch(/CHK\d{3}/);
+  });
 });
