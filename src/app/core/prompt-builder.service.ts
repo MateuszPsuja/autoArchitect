@@ -198,6 +198,8 @@ Populate the top-level "constitution" object with EXACTLY nine articles, in this
 
 The constitution object: { projectName, version, ratifiedAt (ISO), lastAmendedAt (ISO), articles: [9 entries] }. Fill the article "content" strings from autoArchitect's stack (Standalone Angular, signalStore, JSZip, Vitest/Jasmine, DOMPurify, Zod, LangChain, no SSR) and from the plan's constraints and NFRs. Do NOT invent stack choices outside autoArchitect defaults.
 
+Each article MUST carry at least two non-trivial sentences of content naming concrete tooling, behaviours, or NFRs from this plan. Do NOT reuse a sentence across articles. Article 3 (Test-First) MUST describe an enforcement mechanism: Vitest / Jasmine unit tests for every component, BDD Given/When/Then per acceptance scenario, tests-first ordering inside every User Story phase, and a CI coverage gate that fails on missing tests. Article 2 (CLI Interface) MUST either describe the runtime CLI surface (commands, args, exit codes) or be replaced by \`content: "Dropped in this project — no CLI surface is planned."\` with a one-sentence rationale.
+
 Hard rule: do NOT include any mermaid content for user stories or constitution — those live in "Plan.userStories" and "Plan.constitution" only. The renderer emits them as plain Markdown in \`spec.md\` and \`.specify/memory/constitution.md\`.
 
 ━━━ AGENT TASKS — USER STORY LINKAGE ━━━
@@ -733,6 +735,31 @@ g) "constitution" — REQUIRED. The project constitution as an object: { project
    Each article: { articleNumber: 1..9, title, content (one or more sentences) }. Fill the article "content" strings from autoArchitect's stack (Standalone Angular, signalStore, JSZip, Vitest/Jasmine, DOMPurify, Zod, LangChain, no SSR) and from the plan's constraints / NFRs / bounded contexts. Do NOT invent stack choices outside autoArchitect defaults.
 
 Hard rule: do NOT include any mermaid content for user stories or constitution — those live in "Plan.userStories" and "Plan.constitution" only. The renderer emits them as plain Markdown in spec.md and .specify/memory/constitution.md.
+
+━━━ COVERAGE MATRIX (every ID must have at least one downstream artefact) ━━━
+
+For every entry you emit, ensure downstream coverage:
+
+- Every "userStory" (US001, US002, …) MUST have at least 1 entry in "agentTasks" whose "userStoryIds" includes that story's id. If a story has no implementation work (e.g. documentation-only), add an "agentTasks" entry with "userStoryIds": ["<USn>"] and "type": "doc".
+- Every "functionalRequirement" (FR-NNN) with "needsClarification": false MUST have at least 1 "agentTasks" entry whose "description" or "title" references the FR id. If an FR has no implementation work, drop it from the FR list.
+- Every "successCriterion" (SC-NNN) MUST have at least 1 "agentTasks" entry whose description names the SC id and ends with "(SC-NNN measurement harness)".
+- Every "boundedContext" MUST appear in at least one story's "boundedContextIds".
+
+Hard rule: do NOT use NEEDS CLARIFICATION for items you can answer from the user's prompt. Reserve it only for information the user has not provided. Common offenders — voice-clone (FR-008), embedding model + dimension (FR-009), default values, env names. If you find yourself writing needsClarification: true, first re-read the user's idea for the answer.
+
+━━━ SUCCESS CRITERIA WORDING ━━━
+
+Each "successCriteria" entry MUST be measurable and technology-agnostic. Use one of these forms verbatim:
+
+- "<action> in under <N> <unit> at the <percentile>"
+- "<ratio>% of <users|requests|...> complete <action> in under <N> <unit>"
+- "<actor> can <verb> <object> with <≤ N> <unit|step> of <friction>"
+
+Do NOT include any framework, library, file path, or version. A bad example: "the chatbot streams the first token in <1s using WebRTC". A good example: "users see the bot's first reply in under 1 second on a 4G connection".
+
+━━━ TYPO GUARD ━━━
+
+Spelling: never invent model / vendor names. Use only the names the user typed or that appear in autoArchitect's canonical stack — Standalone Angular, NgRx signalStore, JSZip, Vitest, Jasmine, DOMPurify, Zod, LangChain, LangGraph, Mermaid, PrimeNG, FastAPI, OpenAI, Anthropic, MiniMax, Cohere, Mistral, Groq, Grok. Do NOT invent misspelling variants or hallucinate vendor names. If unsure, leave the field out.
 
 ━━━ OUTPUT RULES ━━━
 

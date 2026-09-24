@@ -319,6 +319,22 @@ const AgentTaskSchema = z.object({
   acceptanceCriteria: z.array(z.string().min(1)).min(1),
   fileHints: z.array(z.string().min(1)).min(1),
   userStoryIds: z.array(z.string().regex(USER_STORY_ID_PATTERN)).default([]),
+  taskCluster: z
+    .enum([
+      'image-gen',
+      'persona-edit',
+      'stt',
+      'vad',
+      'barge-in',
+      'zod-pipeline',
+      'measurement-harness',
+      'controller',
+      'orchestrator',
+      'memory',
+      'repository',
+      'other',
+    ])
+    .optional(),
 });
 
 export const PlanSchema = z.object({

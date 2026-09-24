@@ -877,4 +877,219 @@ describe('MarkdownRendererService', () => {
       expect(html).toBe('');
     });
   });
+
+  describe('spec-kit plan gate fixes', () => {
+    it('rewrites "Mini Max" (split) typo to the canonical MiniMax brand in emitted files', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        boundedContexts: [
+          {
+            ...minimalPlanFixture.boundedContexts[0],
+            ubiquitousLanguage: { Plan: 'Mini Max powered planner fixture' },
+          },
+        ],
+      };
+      const files = service.toMarkdownFiles(plan);
+      const offenders = files.filter((f) => /\bMini\sMax\b/.test(f.content));
+      expect(offenders.length).toBe(0);
+      expect(files.some((f) => /MiniMax powered planner fixture/.test(f.content))).toBe(true);
+    });
+
+    it('rewrites Lang Chain and AngularJS to LangChain / Angular', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        systemOverview: {
+          ...minimalPlanFixture.systemOverview,
+          context: 'A web app using Lang Chain for agent flows; AngularJS legacy components.',
+        },
+      };
+      const files = service.toMarkdownFiles(plan);
+      const offenders = files.filter(
+        (f) => /\bLang\sChain\b/.test(f.content) || /\bAngularJS\b/.test(f.content),
+      );
+      expect(offenders.length).toBe(0);
+      expect(files.some((f) => /LangChain for agent flows/.test(f.content))).toBe(true);
+      expect(files.some((f) => /Angular legacy components/.test(f.content))).toBe(true);
+    });
+
+    it('emits the ## See also cross-reference block in plan.md', () => {
+      const files = service.toMarkdownFiles(minimalPlanFixture);
+      const plan = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
+      expect(plan.content).toContain('## See also');
+      expect(plan.content).toContain('[./data-model.md](./data-model.md)');
+      expect(plan.content).toContain('[./contracts/](./contracts/)');
+      expect(plan.content).toContain('[./quickstart.md](./quickstart.md)');
+      expect(plan.content).toContain('[./checklist.md](./checklist.md)');
+    });
+
+    it('marks each empty Article content as PENDING in the Constitution Check section', () => {
+      const pendingConstitution = {
+        ...minimalPlanFixture.constitution!,
+        articles: minimalPlanFixture.constitution!.articles.map((a) =>
+          a.articleNumber === 3 ? { ...a, content: '' } : a,
+        ),
+      };
+      const plan: Plan = { ...minimalPlanFixture, constitution: pendingConstitution };
+      const files = service.toMarkdownFiles(plan);
+      const planMd = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
+      expect(planMd.content).toMatch(/⚠️ PENDING/);
+      expect(planMd.content).toContain('regenerate the plan to ratify the constitution');
+    });
+
+    it('emits a PENDING banner when no constitution is attached', () => {
+      const plan: Plan = { ...minimalPlanFixture, constitution: undefined };
+      const files = service.toMarkdownFiles(plan);
+      const planMd = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
+      expect(planMd.content).toContain('⚠️ PENDING');
+    });
+
+    it('emits the langchain decision sub-line in the Primary Dependencies cell', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        architectureLayers: minimalPlanFixture.architectureLayers.map((l) =>
+          l.id === 'backend'
+            ? { ...l, techStack: ['NestJS 10', 'LangChain', 'PostgreSQL 15'] }
+            : l,
+        ),
+      };
+      const files = service.toMarkdownFiles(plan);
+      const planMd = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
+      expect(planMd.content).toContain('_langchain decision:');
+      expect(planMd.content).toMatch(
+        /_langchain decision:[^_]*LangChain \/ LangGraph for the agentic pipeline/,
+      );
+    });
+
+    it('emits the langchain exclusion sub-line when LangChain is absent', () => {
+      const files = service.toMarkdownFiles(minimalPlanFixture);
+      const planMd = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
+      expect(planMd.content).toContain('LangChain / LangGraph intentionally omitted');
+    });
+
+    it('emits a Source Code (mapped to tasks) sub-block listing directories from agentTasks.fileHints', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        agentTasks: [
+          ...minimalPlanFixture.agentTasks,
+          {
+            id: 'task-002',
+            title: 'Implement API contract',
+            description: 'Define the input/output contract',
+            acceptanceCriteria: ['contract is exported'],
+            fileHints: ['src/app/features/planner/contracts/api.ts'],
+            userStoryIds: ['US001'],
+          },
+        ],
+      };
+      const files = service.toMarkdownFiles(plan);
+      const planMd = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
+      expect(planMd.content).toContain('### Source Code (mapped to tasks)');
+      expect(planMd.content).toContain('src/app/features/planner/contracts/');
+    });
+
+    it('uses contiguous T### ids and emits zero T-FOUND- / T-TEST- variants', () => {
+      const files = service.toMarkdownFiles(minimalPlanFixture);
+      const tasks = files.find((f) => f.path === `${PREFIX}/tasks.md`)!;
+      expect(tasks.content).not.toMatch(/T-FOUND-/);
+      expect(tasks.content).not.toMatch(/T-TEST-/);
+      expect(tasks.content).not.toMatch(/T-NN\d/);
+      const ids = Array.from(tasks.content.matchAll(/- \[ \] (T\d{3})/g)).map((m) => m[1]);
+      expect(ids.length).toBeGreaterThan(0);
+      const unique = new Set(ids);
+      expect(unique.size).toBe(ids.length);
+    });
+
+    it('emits ghost-component tasks in Phase 2 when domain layers lack controller/orchestrator/repo', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        domains: [
+          {
+            ...minimalPlanFixture.domains[0],
+            components: minimalPlanFixture.domains[0].components.map((c) => ({
+              ...c,
+              type: 'domain-service' as const,
+            })),
+          },
+        ],
+      };
+      const files = service.toMarkdownFiles(plan);
+      const tasks = files.find((f) => f.path === `${PREFIX}/tasks.md`)!;
+      expect(tasks.content).toContain('## Phase 2: Foundational');
+      expect(tasks.content).toContain('(ghost)');
+      expect(tasks.content).toMatch(/\(ghost\)\s+Scaffold the application-layer controller/);
+      expect(tasks.content).toMatch(/\(ghost\)\s+Scaffold the use-case orchestrator/);
+      expect(tasks.content).toMatch(/\(ghost\)\s+Scaffold the persistence repository/);
+    });
+
+    it('emits owned Tests + Implementation sub-phases in the Polish phase', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        successCriteria: [
+          { id: 'SC-001', text: 'Users can complete a flow in under 5s.' },
+          { id: 'SC-002', text: '95% of users finish the task without assistance.' },
+        ],
+      };
+      const files = service.toMarkdownFiles(plan);
+      const tasks = files.find((f) => f.path === `${PREFIX}/tasks.md`)!;
+      expect(tasks.content).toMatch(/## Phase \d+: Polish & Cross-Cutting Concerns/);
+      expect(tasks.content).toContain('### Tests for the polish phase');
+      expect(tasks.content).toContain('### Implementation for the polish phase');
+      expect(tasks.content).toContain('SC-001 measurement harness');
+      expect(tasks.content).toContain('SC-002 measurement harness');
+    });
+
+    it('synthesises starter synthetic tasks when a User Story has no related agentTask', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        agentTasks: [],
+        userStories: [
+          {
+            ...minimalPlanFixture.userStories[0],
+            description:
+              'Wire the image-generation pipeline and support persona-edit so the operator can re-roll.',
+          },
+        ],
+      };
+      const files = service.toMarkdownFiles(plan);
+      const tasks = files.find((f) => f.path === `${PREFIX}/tasks.md`)!;
+      expect(tasks.content).toContain('(synth)');
+      expect(tasks.content).toMatch(/\(synth\)\s+Wire the image-generation pipeline/);
+      expect(tasks.content).toMatch(/\(synth\)\s+Implement the persona-editing surface/);
+    });
+
+    it('renders Article 3 with an appended enforcement sentence when the LLM provided a vague line', () => {
+      const vagueConstitution = {
+        ...minimalPlanFixture.constitution!,
+        articles: minimalPlanFixture.constitution!.articles.map((a) =>
+          a.articleNumber === 3 ? { ...a, content: 'No tests before merge.' } : a,
+        ),
+      };
+      const plan: Plan = { ...minimalPlanFixture, constitution: vagueConstitution };
+      const files = service.toMarkdownFiles(plan);
+      const constitution = files.find((f) => f.path === '.specify/memory/constitution.md')!;
+      expect(constitution.content).toMatch(/## Article 3 — Test-First/);
+      expect(constitution.content).toMatch(/CI gate blocks merges when coverage falls/);
+    });
+
+    it('emits the dropped marker for Article 2 when its content is empty', () => {
+      const droppedConstitution = {
+        ...minimalPlanFixture.constitution!,
+        articles: minimalPlanFixture.constitution!.articles.map((a) =>
+          a.articleNumber === 2 ? { ...a, content: '' } : a,
+        ),
+      };
+      const plan: Plan = { ...minimalPlanFixture, constitution: droppedConstitution };
+      const files = service.toMarkdownFiles(plan);
+      const constitution = files.find((f) => f.path === '.specify/memory/constitution.md')!;
+      expect(constitution.content).toContain('Dropped in this project');
+      expect(constitution.content).toContain('no CLI surface is planned');
+    });
+
+    it('renders the constitution.md fallback pending marker when no constitution is attached', () => {
+      const plan: Plan = { ...minimalPlanFixture, constitution: undefined };
+      const files = service.toMarkdownFiles(plan);
+      const constitution = files.find((f) => f.path === '.specify/memory/constitution.md')!;
+      expect(constitution.content).toContain('⚠️ PENDING');
+    });
+  });
 });
