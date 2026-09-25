@@ -47,6 +47,24 @@ interface NewDomainManualDraft {
     } @else {
       <fieldset class="fields-editor" [disabled]="readonly()">
 
+        <!-- Application Idea -->
+        <section class="editor-section">
+          <h3 class="section-title">Application Idea</h3>
+          <div class="field-grid">
+            <div class="field full-width">
+              <label class="field-label">Original idea</label>
+              <textarea
+                pTextarea
+                class="w-full"
+                rows="5"
+                [value]="ideaDraft()"
+                (blur)="onUserIdeaChange($any($event.target).value)"
+                [readonly]="readonly()"
+              ></textarea>
+            </div>
+          </div>
+        </section>
+
         <!-- Meta -->
         <section class="editor-section">
           <h3 class="section-title">Plan Summary</h3>
@@ -677,6 +695,10 @@ export class PlanFieldsEditorComponent {
 
   protected readonly readonly = computed(() => this.store.isGenerating());
 
+  protected readonly ideaDraft = computed(
+    () => this.store.lastOriginalInput()?.idea ?? this.draft()?.meta?.userIdea ?? '',
+  );
+
   protected readonly draft = signal<Plan | null>(null);
 
   protected readonly expandedAddForm = signal<AddFormKind | null>(null);
@@ -714,6 +736,20 @@ export class PlanFieldsEditorComponent {
     const current = this.draft();
     if (!current || !value.trim()) return;
     const updated: Plan = { ...current, meta: { ...current.meta, [field]: value } };
+    this.draft.set(updated);
+    this.store.replacePlanForUserEdit(updated);
+  }
+
+  protected onUserIdeaChange(value: string): void {
+    const current = this.draft();
+    if (!current) return;
+    const trimmed = value.trim();
+    const currentIdea = current.meta.userIdea ?? '';
+    if (trimmed === currentIdea) return;
+    const updated: Plan = {
+      ...current,
+      meta: { ...current.meta, userIdea: trimmed || undefined },
+    };
     this.draft.set(updated);
     this.store.replacePlanForUserEdit(updated);
   }

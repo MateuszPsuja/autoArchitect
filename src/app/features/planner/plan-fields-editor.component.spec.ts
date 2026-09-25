@@ -6,8 +6,12 @@ import { minimalPlanFixture } from '../../testing/fixtures';
 import { PlanFieldsEditorComponent } from './plan-fields-editor.component';
 
 describe('PlanFieldsEditorComponent', () => {
-  function setup(planOverride = minimalPlanFixture) {
+  function setup(
+    planOverride = minimalPlanFixture,
+    options: { lastOriginalInput?: any | null } = {},
+  ) {
     const planSig = signal(planOverride);
+    const lastInputSig = signal(options.lastOriginalInput ?? null);
     const setPlan = vi.fn((p: any) => {
       planSig.set(p);
     });
@@ -32,6 +36,7 @@ describe('PlanFieldsEditorComponent', () => {
       setError,
       clearMarkdownOverrides,
       isGenerating: signal(false),
+      lastOriginalInput: lastInputSig,
       config: signal({
         provider: 'openrouter',
         providerConfigs,
@@ -49,7 +54,7 @@ describe('PlanFieldsEditorComponent', () => {
     const fixture = TestBed.createComponent(PlanFieldsEditorComponent);
     fixture.detectChanges();
 
-    return { fixture, store };
+    return { fixture, store, lastInputSig };
   }
 
   it('renders four list-grid sections sharing the same grid container for the requested collections', () => {
@@ -99,7 +104,7 @@ describe('PlanFieldsEditorComponent', () => {
       expect(grid.querySelector('.field-grid')).toBeNull();
     }
 
-    expect(root.querySelectorAll('.field-grid').length).toBe(2);
+    expect(root.querySelectorAll('.field-grid').length).toBe(3);
   });
 
   it('shows the + Add ADR / Workflow / Task / Domain buttons in the section footers', () => {
@@ -247,5 +252,94 @@ describe('PlanFieldsEditorComponent', () => {
         .filter((s) => s.length > 0).length;
       expect(columnCount).toBe(2);
     }
+  });
+
+  it('renders the Application Idea field above the Plan Summary section', () => {
+    const { fixture } = setup();
+    const root = fixture.nativeElement as HTMLElement;
+
+    const sections = Array.from(root.querySelectorAll('fieldset > section.editor-section'));
+    expect(sections.length).toBeGreaterThanOrEqual(2);
+
+    const ideaSection = sections[0];
+    expect(ideaSection.querySelector('.section-title')?.textContent?.trim()).toBe(
+      'Application Idea',
+    );
+    expect(ideaSection.contains(root.querySelector('textarea'))).toBe(true);
+
+    const planSummaryIndex = sections.findIndex(
+      (s) => s.querySelector('.section-title')?.textContent?.trim() === 'Plan Summary',
+    );
+    expect(planSummaryIndex).toBeGreaterThan(0);
+  });
+
+  it('prefers lastOriginalInput.idea over plan.meta.userIdea for the initial Application Idea value', () => {
+    const planWithUserIdea = structuredClone(minimalPlanFixture);
+    planWithUserIdea.meta.userIdea = 'fallback-from-meta';
+
+    const { fixture } = setup(planWithUserIdea, {
+      lastOriginalInput: { idea: 'live-original-idea' },
+    });
+    const root = fixture.nativeElement as HTMLElement;
+
+    const ideaTextarea = root.querySelector('textarea') as HTMLTextAreaElement;
+    expect(ideaTextarea).toBeTruthy();
+    expect(ideaTextarea.value).toBe('live-original-idea');
+  });
+
+  it('falls back to plan.meta.userIdea when lastOriginalInput is null', () => {
+    const planWithUserIdea = structuredClone(minimalPlanFixture);
+    planWithUserIdea.meta.userIdea = 'fallback-from-meta';
+
+    const { fixture } = setup(planWithUserIdea, { lastOriginalInput: null });
+    const root = fixture.nativeElement as HTMLElement;
+
+    const ideaTextarea = root.querySelector('textarea') as HTMLTextAreaElement;
+    expect(ideaTextarea.value).toBe('fallback-from-meta');
+  });
+
+  it('on blur with a new value, patches plan.meta.userIdea via replacePlanForUserEdit with trimmed value', () => {
+    const { fixture, store } = setup(minimalPlanFixture, {
+      lastOriginalInput: { idea: 'live-original-idea' },
+    });
+    const root = fixture.nativeElement as HTMLElement;
+    const component = fixture.componentInstance as any;
+
+    const ideaTextarea = root.querySelector('textarea') as HTMLTextAreaElement;
+    ideaTextarea.value = '  edited idea text  ';
+    ideaTextarea.dispatchEvent(new Event('blur'));
+    fixture.detectChanges();
+
+    expect(store.replacePlanForUserEdit).toHaveBeenCalled();
+    const last = store.replacePlanForUserEdit.mock.calls.at(-1)![0];
+    expect(last.meta.userIdea).toBe('edited idea text');
+  });
+
+  it('on blur with the same value, does not patch the plan (no-op)', () => {
+    const planWithUserIdea = structuredClone(minimalPlanFixture);
+    planWithUserIdea.meta.userIdea = 'unchanged';
+
+    const { fixture, store } = setup(planWithUserIdea, { lastOriginalInput: null });
+    const root = fixture.nativeElement as HTMLElement;
+
+    const ideaTextarea = root.querySelector('textarea') as HTMLTextAreaElement;
+    ideaTextarea.value = 'unchanged';
+    ideaTextarea.dispatchEvent(new Event('blur'));
+    fixture.detectChanges();
+
+    expect(store.replacePlanForUserEdit).not.toHaveBeenCalled();
+  });
+
+  it('propagates readonly() to the Application Idea textarea via the [readonly] attribute', () => {
+    const { fixture, store } = setup();
+    const component = fixture.componentInstance as any;
+
+    store.isGenerating.set(true);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const ideaTextarea = root.querySelector('textarea') as HTMLTextAreaElement;
+    expect(ideaTextarea.hasAttribute('readonly')).toBe(true);
+    expect(component.readonly()).toBe(true);
   });
 });
