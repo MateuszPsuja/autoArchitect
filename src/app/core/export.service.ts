@@ -20,17 +20,6 @@ export class ExportService {
       zip.file(file.path, overrides[file.path] ?? file.content);
     }
 
-    const stamped = {
-      ...plan,
-      meta: { ...plan.meta, tokenStats: this.store.tokenStats() },
-    };
-
-    zip.file('plan.json', JSON.stringify(stamped, null, 2));
-    zip.file(
-      'features.json',
-      JSON.stringify(buildFeaturesIndex(plan, this.markdownRenderer), null, 2),
-    );
-
     return zip.generateAsync({ type: 'blob' });
   }
 
