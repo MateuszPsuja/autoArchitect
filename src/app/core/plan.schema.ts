@@ -72,6 +72,47 @@ const FUNCTIONAL_REQUIREMENTS_MAX = 30;
 const SUCCESS_CRITERIA_MAX = 10;
 const CONSTITUTION_ARTICLES_MAX = 9;
 
+export const MetaLibrarySchema = z.object({
+  name: z.string().min(1),
+  currentVersion: z.string().regex(/^\d+\.\d+\.\d+$/),
+  releaseChannel: z.enum(['stable', 'beta', 'rc']).default('stable'),
+});
+export type MetaLibrary = z.infer<typeof MetaLibrarySchema>;
+
+export const SpecKitPatchSchema = z.object({
+  file: z.enum([
+    'spec.md',
+    'plan.md',
+    'tasks.md',
+    'checklist.md',
+    'data-model.md',
+    'constitution.md',
+    '*',
+  ]),
+  selector: z.string().min(1),
+  op: z.enum(['append', 'replace', 'prepend', 'remove']),
+  content: z.string().optional(),
+});
+export type SpecKitPatch = z.infer<typeof SpecKitPatchSchema>;
+
+export const SpecKitKeyEntitySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  owningContext: z.string().min(1),
+  attributes: z.array(z.string().min(1)).default([]),
+});
+export type SpecKitKeyEntity = z.infer<typeof SpecKitKeyEntitySchema>;
+
+export const SpecKitSchema = z
+  .object({
+    offlineContract: z.string().nullable().optional(),
+    keyEntities: z.array(SpecKitKeyEntitySchema).default([]),
+    patches: z.array(SpecKitPatchSchema).default([]),
+  })
+  .passthrough()
+  .default({ offlineContract: null, keyEntities: [], patches: [] });
+export type SpecKit = z.infer<typeof SpecKitSchema>;
+
 export const PRIORITY_PATTERN = /^P[123]$/;
 export const USER_STORY_ID_PATTERN = /^US\d{3,}$/;
 export const FR_ID_PATTERN = /^FR-[A-Za-z0-9-]{3,}$/;
@@ -465,6 +506,7 @@ export const PlanSchema = z.object({
     avatarBundleSpec: AvatarBundleSpecSchema.optional(),
     operationalConstraints: OperationalConstraintsSchema.optional(),
     transcriptSchema: TranscriptSchemaSchema.optional(),
+    libraries: z.array(MetaLibrarySchema).default([]),
   }),
   systemOverview: z.object({
     purpose: z.string().min(1),
@@ -514,6 +556,7 @@ export const PlanSchema = z.object({
   offlineContract: OfflineContractSchema.optional(),
   glossary: z.array(GlossaryEntrySchema).default([]).optional(),
   nonGoals: z.array(z.string().min(1)).default([]).optional(),
+  specKit: SpecKitSchema,
 });
 
 export const LayerChunkSchema = z.union([

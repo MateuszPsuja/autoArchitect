@@ -10,6 +10,7 @@ const fixturePlan = (contexts: BoundedContext[]): Plan => {
       model: 'test',
       featureNumber: 1,
       featureSlug: 'fixture',
+      libraries: [],
     },
     systemOverview: {
       purpose: 'fixture',
@@ -41,6 +42,7 @@ const fixturePlan = (contexts: BoundedContext[]): Plan => {
     adrs: [],
     agentTasks: [],
     refinementChats: [],
+    specKit: { offlineContract: null, keyEntities: [], patches: [] },
   };
   return { ...base, boundedContexts: contexts } as Plan;
 };

@@ -275,3 +275,25 @@ export function synthesiseConstitutionTasks(plan: Plan): AgentTask[] {
 
   return out;
 }
+
+export function synthesiseVersioningTasks(plan: Plan): AgentTask[] {
+  const tasks: AgentTask[] = [];
+  const libraries = (plan.meta as { libraries?: { name: string; currentVersion: string }[] }).libraries ?? [];
+  for (const lib of libraries) {
+    if (!lib?.name) continue;
+    const safe = lib.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    tasks.push({
+      id: nextSynthId(6, `bump-${safe || 'lib'}`),
+      title: `Version bump for ${lib.name}`,
+      description: `Article 6 — bump ${lib.name} to ${lib.currentVersion}; update changelog and release notes.`,
+      acceptanceCriteria: [
+        `${lib.name} version is ${lib.currentVersion} in package.json.`,
+        `CHANGELOG entry recorded for ${lib.name}.`,
+      ],
+      fileHints: [`libs/${safe || 'lib'}/package.json`, 'CHANGELOG.md'],
+      userStoryIds: [],
+      constitutionArticle: 6,
+    });
+  }
+  return tasks;
+}

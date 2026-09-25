@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { z, ZodError } from 'zod';
 import {
   ArchitectureLayer,
@@ -17,6 +17,7 @@ import { PdfDocument, PdfDocumentSchema, PdfPartialDocumentSchema } from './pdf-
 import { AuditFinding, AuditRunner } from './audit-runner.service';
 import { ElementKind, UserEditSummary } from './diff/user-edit-summary';
 import { sanitizeMermaidLabels } from './mermaid-label-sanitizer';
+import { RemediatorService } from './speckit/remediator/remediator.service';
 
 export type Scaffold = z.infer<typeof ScaffoldSchema>;
 export type Tail = z.infer<typeof TailSchema>;
@@ -107,6 +108,7 @@ function sanitiseId(raw: string): string {
 
 @Injectable({ providedIn: 'root' })
 export class PlanSchemaService {
+  private readonly remediator = inject(RemediatorService);
 
   static isPlan(value: unknown): value is Plan {
     return PlanSchema.safeParse(value).success;
@@ -1563,7 +1565,10 @@ export class PlanSchemaService {
   }
 
   validateMergedPlan(plan: Plan): AuditFinding[] {
-    return new AuditRunner().run(plan);
+    const audit = new AuditRunner().run(plan);
+    const report = this.remediator.runGenerationPass(plan);
+    this.remediator.applyGenerationPatches(plan, report);
+    return audit;
   }
 
   replacePlanField(

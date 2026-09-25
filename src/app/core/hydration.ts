@@ -80,6 +80,9 @@ export function migratePlan(plan: Plan): Plan {
       ? plan.functionalRequirements
       : [],
     successCriteria: Array.isArray(plan.successCriteria) ? plan.successCriteria : [],
+    specKit: plan.specKit && typeof plan.specKit === 'object'
+      ? plan.specKit
+      : { offlineContract: null, keyEntities: [], patches: [] },
   };
   if (typeof meta.featureNumber !== 'number' || typeof meta.featureSlug !== 'string' || meta.featureSlug.length === 0) {
     const fallbackSlug = defaultSlugFromTitle(meta.title ?? 'feature') || 'feature';

@@ -1318,9 +1318,11 @@ export class PromptBuilderService {
 
 
     const safeSystem = escapeBraces(
-      SYSTEM_PROMPT.replace('{schema}', JSON.stringify(schema, null, 2)).replace(
-        '{retryContext}',
-        retrySection,
+      appendRemediatorProviderIdentity(
+        SYSTEM_PROMPT.replace('{schema}', JSON.stringify(schema, null, 2)).replace(
+          '{retryContext}',
+          retrySection,
+        ),
       ),
     );
     const skill = skillOverride?.skill.prompt ?? undefined;
@@ -2681,4 +2683,27 @@ export function summarizeForPdf(plan: Plan): unknown {
       description: capString(t.description, PDF_SUMMARY_STRING_CAP),
     })),
   };
+}
+
+const REMEDIATOR_PROVIDER_IDENTITY_BLOCK = [
+  'PROVIDER IDENTITY (remediator append):',
+  '- Use canonical provider names from the project AGENTS.md provider registry:',
+  '  OpenAI, Anthropic, Google, Mistral, OpenRouter, xAI, Zhipu, minimax.',
+  '  OpenRouter is one of several providers — do not single it out for special headline status.',
+  '- Vague adjectives (fast, intuitive, smooth, robust, seamless, effortless, natural) are NOT allowed',
+  '  in User Story acceptance scenarios or Success Criteria. Use measurable predicates with units.',
+  '- For each User Story Given/When/Then, pick exactly one mode and defer alternates to a',
+  '  "Future work" subsection under that story heading.',
+  '',
+  'VERSIONING / LIBRARY-FIRST (constitution alignment):',
+  '- When Article 6 (Versioning) mandates SemVer and a changelog, every library declared in',
+  '  the optional meta.libraries array (objects of { name, currentVersion, releaseChannel })',
+  '  must drive a distinct version-bump + changelog-init + release-notes task.',
+  '- Library-first articles must name primitives (HttpClient, ChatOpenAI, etc.) rather than',
+  '  the phrase "framework default".',
+].join('\n');
+
+export function appendRemediatorProviderIdentity(systemPrompt: string): string {
+  if (systemPrompt.includes('PROVIDER IDENTITY (remediator append)')) return systemPrompt;
+  return `${systemPrompt}\n\n${REMEDIATOR_PROVIDER_IDENTITY_BLOCK}`;
 }

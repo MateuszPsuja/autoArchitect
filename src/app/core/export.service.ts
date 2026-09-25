@@ -4,21 +4,28 @@ import { Plan } from './plan.schema';
 import { MarkdownRendererService } from './markdown-renderer.service';
 import { branchName, featureFolder } from './feature-slug';
 import { ProjectStore } from './project.store';
+import { RemediatorService } from './speckit/remediator/remediator.service';
 
 const CONSTITUTION_PATH = '.specify/memory/constitution.md';
+const REMEDIATION_REPORT_PATH = '.specify/memory/remediation-report.json';
 
 @Injectable({ providedIn: 'root' })
 export class ExportService {
   private readonly markdownRenderer = inject(MarkdownRendererService);
   private readonly store = inject(ProjectStore);
+  private readonly remediator = inject(RemediatorService);
 
   async buildZip(plan: Plan, overrides: Record<string, string>): Promise<Blob> {
     const zip = new JSZip();
-    const files = this.markdownRenderer.toMarkdownFiles(plan, { includeDirectoryAgents: false });
+    const draftFiles = this.markdownRenderer.toMarkdownFiles(plan, { includeDirectoryAgents: false });
+    const pass = this.remediator.runExportPass(plan, draftFiles);
+    const files = pass.files;
 
     for (const file of files) {
       zip.file(file.path, overrides[file.path] ?? file.content);
     }
+
+    zip.file(REMEDIATION_REPORT_PATH, JSON.stringify(pass.report, null, 2));
 
     return zip.generateAsync({ type: 'blob' });
   }

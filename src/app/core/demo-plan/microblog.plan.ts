@@ -23,6 +23,7 @@ export const MICROBLOG_DEMO_META = {
   featureNumber: 1,
   featureSlug: 'microblog-demo',
   branchName: '001-microblog-demo',
+  libraries: [],
 } as const;
 
 const standardAgentInstructions = [
@@ -3235,6 +3236,7 @@ const rawDemoPlan = {
       ],
     },
   ],
+  specKit: { offlineContract: null, keyEntities: [], patches: [] },
 };
 
 export const MICROBLOG_DEMO_PLAN: Plan = PlanSchema.parse(rawDemoPlan);

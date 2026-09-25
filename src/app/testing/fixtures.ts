@@ -20,6 +20,7 @@ export const minimalPlanFixture: Plan = {
     featureNumber: 1,
     featureSlug: 'planner-fixture',
     branchName: '001-planner-fixture',
+    libraries: [],
   },
   systemOverview: {
     purpose: 'Validate parsing and rendering.',
@@ -255,4 +256,5 @@ export const minimalPlanFixture: Plan = {
     },
   ],
   refinementChats: [],
+  specKit: { offlineContract: null, keyEntities: [], patches: [] },
 };

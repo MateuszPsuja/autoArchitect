@@ -15,6 +15,7 @@ function makePlan(): Plan {
       model: 'test',
       featureNumber: 1,
       featureSlug: 'waitress-helper',
+      libraries: [],
     },
     systemOverview: {
       purpose: 'Take and manage restaurant orders',
@@ -152,6 +153,7 @@ function makePlan(): Plan {
     userStories: [],
     functionalRequirements: [],
     successCriteria: [],
+    specKit: { offlineContract: null, keyEntities: [], patches: [] },
   };
 }
 
@@ -165,6 +167,7 @@ describe('buildArchitectureBlueprint', () => {
       },
       boundedContexts: [],
       domains: [],
+      specKit: { offlineContract: null, keyEntities: [], patches: [] },
     } as Plan;
     const out = buildArchitectureBlueprint(empty);
     expect(out).toMatch(/^graph TD\n/);
