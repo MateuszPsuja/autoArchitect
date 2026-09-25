@@ -5,6 +5,7 @@ import { marked } from 'marked';
 import {
   Adr,
   Aggregate,
+  AgentTask,
   ArchitectureLayer,
   ConstitutionArticle,
   DirectoryEntry,
@@ -19,6 +20,20 @@ import {
 } from './plan.schema';
 import { branchName, featureFolder, slugify } from './feature-slug';
 import { synthesiseEdgeCases } from './edge-case-synthesiser';
+import { synthesiseConstitutionTasks } from './speckit/constitution-pack';
+import { dedupKey, pickPrimaryStory } from './speckit/task-dedup';
+import { fr010Default, stripNestedMarker } from './speckit/fr-clarification';
+
+const ONBOARDING_SUBTASK_TITLES: Record<string, string> = {
+  'onboarding-route': 'Onboarding route + form scaffold',
+  'voice-record-ui': 'Voice-record UI (MediaRecorder + waveform)',
+  'avatar-picker-ui': 'Avatar-picker UI',
+  'save-flow-sanitise': 'Save flow + DOMPurify sanitization on stored personality text',
+};
+
+const RETRIEVAL_DESCRIPTION_LANGCHAIN = 'LangChain-based retrieval';
+const RETRIEVAL_DESCRIPTION_FALLBACK =
+  'deterministic retrieval via the chosen embedding model (FR-010)';
 
 export interface MarkdownFile {
   path: string;
@@ -74,6 +89,7 @@ export class MarkdownRendererService {
   private sanitiseTerminology(md: string): string {
     if (!md) return md;
     const substitutions: ReadonlyArray<readonly [RegExp, string]> = [
+      [/\b[Mm]ini\s?[Mm]ax\b/g, 'MiniMax'],
       [/\bMini\s?Max\b/g, 'MiniMax'],
       [/\bminimax\b/g, 'MiniMax'],
       [/\bLang\s?Chain\b/g, 'LangChain'],
@@ -230,13 +246,26 @@ export class MarkdownRendererService {
       lines.push('> No functional requirements extracted for this plan yet.', '');
     } else {
       for (const fr of plan.functionalRequirements) {
+        const safeNote = stripNestedMarker(fr.clarificationNote);
         const clarification =
-          fr.needsClarification && fr.clarificationNote
-            ? ` **[NEEDS CLARIFICATION: ${fr.clarificationNote}]**`
+          fr.needsClarification && safeNote
+            ? ` **[NEEDS CLARIFICATION: ${safeNote}]**`
             : fr.needsClarification
               ? ' **[NEEDS CLARIFICATION]**'
               : '';
-        lines.push(`- **${fr.id}** — ${fr.text}${clarification}`);
+        const profileTag =
+          fr.validationProfile && fr.validationProfile !== 'none'
+            ? ` _(${fr.validationProfile})_`
+            : '';
+        lines.push(`- **${fr.id}** — ${fr.text}${profileTag}${clarification}`);
+      }
+      lines.push('');
+    }
+
+    if ((plan.nonFunctionalRequirements ?? []).length > 0) {
+      lines.push('## Non-Functional Requirements *(mandatory)*', '');
+      for (const nfr of plan.nonFunctionalRequirements ?? []) {
+        lines.push(`- **${nfr.id}** — ${nfr.text} _(category: ${nfr.category})_`);
       }
       lines.push('');
     }
@@ -414,31 +443,11 @@ export class MarkdownRendererService {
     lines.push('');
     lines.push('### Source Code', '');
     lines.push('```text');
-    const layerPaths = (plan.architectureLayers ?? []).flatMap((l) =>
-      (l.directoryStructure ?? []).map((d) => d.path),
-    );
-    if (layerPaths.length > 0) {
-      for (const p of layerPaths) {
-        lines.push(`${p}/`);
-      }
+    const treePaths = this.collectCanonicalSourceTree(plan);
+    if (treePaths.length === 0) {
+      lines.push('No source paths declared. Populate `agentTasks[].fileHints` or `architectureLayers[].directoryStructure[].path` to populate this block.');
     } else {
-      lines.push('No layer directories declared.');
-    }
-    lines.push('```');
-    lines.push('');
-    lines.push('### Source Code (mapped to tasks)', '');
-    lines.push('```text');
-    const taskDirs = new Set<string>();
-    for (const task of plan.agentTasks ?? []) {
-      for (const hint of task.fileHints ?? []) {
-        const dir = hint.replace(/\/[^/]+$/, '');
-        if (dir) taskDirs.add(dir);
-      }
-    }
-    if (taskDirs.size === 0) {
-      lines.push('(no agent tasks yet — paths will appear once `tasks.md` is populated)');
-    } else {
-      for (const d of [...taskDirs].sort()) lines.push(`${d}/`);
+      for (const p of treePaths) lines.push(`${p}/`);
     }
     lines.push('```');
     lines.push('');
@@ -452,7 +461,10 @@ export class MarkdownRendererService {
     const tracking = (plan.architectureLayers ?? []).flatMap((l) =>
       (l.complexityTracking ?? []).map((c) => ({ ...c, layerId: l.id })),
     );
-    if (tracking.length === 0) {
+    const hasOpenViolations = (plan.architectureLayers ?? []).some((l) =>
+      (l.constitutionCheck ?? []).some((g) => g.startsWith('❌')),
+    );
+    if (tracking.length === 0 || !hasOpenViolations) {
       lines.push('> No constitution violations; standard complexity.', '');
     } else {
       lines.push('> **Fill ONLY if Constitution Check has violations that must be justified**', '');
@@ -505,7 +517,7 @@ export class MarkdownRendererService {
         ? `${layers[0].name} (${layers[0].id})`
         : `Multi-layer (${layerIds})`;
     const hints = plan.meta.technologyHints?.trim();
-    const langchainDecision = this.resolveLangChainDecision(techStack);
+    const langchainDecision = this.resolveLangChainDecision(plan, techStack);
     return {
       languageVersion: hints ? hints : 'TypeScript 5.x (Angular 17+, Node 20+)',
       primaryDependencies: uniqueTechStack.length > 0 ? uniqueTechStack.join(', ') : 'N/A',
@@ -521,17 +533,50 @@ export class MarkdownRendererService {
   }
 
   /**
-   * Spec-kit requires the implementation plan to either include LangChain /
-   * LangGraph in the runtime stack or document why it is intentionally
-   * omitted. We infer "includes" from any tech-stack entry that names
-   * LangChain or LangGraph; everything else falls back to a documented
-   * exclusion with a pointer to the per-layer architecture.
+   * Build the single canonical `### Source Code` tree in `plan.md`. Prefers
+   * paths derived from `agentTasks[].fileHints` (since each task is the
+   * authoritative owner of the file it ships), and falls back to
+   * `architectureLayers[].directoryStructure[].path` when no tasks exist.
+   * Leaf directories that contain no concrete file hint are dropped.
    */
-  private resolveLangChainDecision(techStack: string[]): string {
+  private collectCanonicalSourceTree(plan: Plan): string[] {
+    const dirs = new Set<string>();
+    const hintDirs: string[] = [];
+    for (const task of plan.agentTasks ?? []) {
+      for (const hint of task.fileHints ?? []) {
+        const dir = hint.replace(/\/[^/]+$/, '');
+        if (dir) {
+          hintDirs.push(dir);
+          dirs.add(dir);
+        }
+      }
+    }
+    if (hintDirs.length > 0) {
+      return [...dirs].sort();
+    }
+    const layerPaths = (plan.architectureLayers ?? []).flatMap((l) =>
+      (l.directoryStructure ?? []).map((d) => d.path),
+    );
+    for (const p of layerPaths) {
+      const trimmed = p.replace(/\/[^/]+$/, '');
+      if (trimmed) dirs.add(trimmed);
+    }
+    return [...dirs].sort();
+  }
+
+  /**
+   * Spec-kit requires the implementation plan to either declare an agent
+   * framework or document why none is needed. The decision is sourced from
+   * `plan.agentFramework` when set, otherwise inferred from the tech stack.
+   */
+  private resolveLangChainDecision(plan: Plan, techStack: string[]): string {
+    if (plan.agentFramework && plan.agentFramework !== 'none') {
+      return `Agent framework: ${plan.agentFramework} — see ADR-0001 in \`docs/20-decisions/ADR-0001-agent-framework.md\`.`;
+    }
     const usesLangChain = techStack.some((t) => /LangChain|LangGraph/i.test(t));
     return usesLangChain
       ? 'Includes LangChain / LangGraph for the agentic pipeline (see per-layer architecture).'
-      : 'LangChain / LangGraph intentionally omitted — see per-layer architecture docs for the chosen agent framework.';
+      : `Agent framework: none — deterministic retrieval via the chosen embedding model. See ADR-0001 in \`docs/20-decisions/ADR-0001-agent-framework.md\`.`;
   }
 
   private buildDataModelMd(plan: Plan): string {
@@ -728,14 +773,22 @@ export class MarkdownRendererService {
     ];
 
     lines.push('## Phase 2: Foundational (Blocking Prerequisites)', '');
+    const constitutionTasks = synthesiseConstitutionTasks(plan);
     const foundational = (plan.domains ?? []).filter((d) => d.layer === 'domain');
-    if (foundational.length === 0) {
-      lines.push('> No domain-layer components block every user story.', '');
+    if (constitutionTasks.length === 0) {
+      if (foundational.length === 0) {
+        lines.push('> No domain-layer components block every user story.', '');
+      } else {
+        for (const domain of foundational) {
+          lines.push(
+            `- [ ] ${next()} Establish \`${domain.name}\` domain scaffolding (${domain.components.length} component(s)).`,
+          );
+        }
+      }
     } else {
-      for (const domain of foundational) {
-        lines.push(
-          `- [ ] ${next()} Establish \`${domain.name}\` domain scaffolding (${domain.components.length} component(s)).`,
-        );
+      for (const ct of constitutionTasks) {
+        const tag = ct.constitutionArticle ? `Article ${ct.constitutionArticle} — ` : '';
+        lines.push(`- [ ] ${next()} [PHASE 2] (pack) ${tag}${ct.title}`);
       }
     }
     const ghosts = this.ghostFoundationalTasks(plan);
@@ -787,11 +840,14 @@ export class MarkdownRendererService {
       );
       lines.push(`**Independent Test**: ${story.independentTest}`, '');
       lines.push(`### Tests for User Story ${story.id} (OPTIONAL — write first)`, '');
-      lines.push(`- [ ] ${next()} Author BDD scenarios that map to acceptance scenarios for ${story.id}.`);
-      const testableComponents = (plan.domains ?? []).flatMap((d) =>
-        (d.components ?? []).filter(
-          (c) => (c.tddSpec?.unitTests?.length ?? 0) + (c.tddSpec?.integrationTests?.length ?? 0) > 0,
-        ),
+      for (const sc of story.acceptanceScenarios) {
+        lines.push(
+          `- [ ] ${next()} [${story.id}] Author BDD for ${sc.id}: Given ${sc.given}, When ${sc.when}, Then ${sc.then}`,
+        );
+      }
+      const contextComponents = this.componentsForStory(story, plan);
+      const testableComponents = contextComponents.filter(
+        (c) => (c.tddSpec?.unitTests?.length ?? 0) + (c.tddSpec?.integrationTests?.length ?? 0) > 0,
       );
       if (testableComponents.length > 0) {
         lines.push(
@@ -805,12 +861,23 @@ export class MarkdownRendererService {
       lines.push(`### Implementation for User Story ${story.id}`, '');
       const relatedTasks = (plan.agentTasks ?? []).filter((t) => t.userStoryIds.includes(story.id));
       const synthetics = this.syntheticStoryTasks(story, plan);
-      if (relatedTasks.length === 0 && synthetics.length === 0) {
+      const emitMap = new Map<string, { task: AgentTask; primaryStoryId: string }>();
+      for (const task of relatedTasks) {
+        const key = dedupKey(task);
+        const existing = emitMap.get(key);
+        if (!existing) {
+          emitMap.set(key, { task, primaryStoryId: pickPrimaryStory(task, storiesByPriority) });
+        }
+      }
+      const primaryHere = [...emitMap.values()].filter(({ primaryStoryId }) => primaryStoryId === story.id);
+      const crossRefs = [...emitMap.values()].filter(({ primaryStoryId }) => primaryStoryId !== story.id);
+      const syntheticsForStory = synthetics;
+      if (primaryHere.length === 0 && crossRefs.length === 0 && syntheticsForStory.length === 0) {
         lines.push(
           `> No agent tasks linked to ${story.id}. Add \`userStoryIds: ["${story.id}"]\` on the relevant \`agentTasks\` entries.`,
         );
       } else {
-        for (const task of relatedTasks) {
+        for (const { task } of primaryHere) {
           const idx = (plan.agentTasks ?? []).indexOf(task);
           const parallel = this.canParallelize(task, hintSets, idx);
           const storyTags = task.userStoryIds.length > 0
@@ -821,7 +888,7 @@ export class MarkdownRendererService {
           lines.push(
             `  - **User Stories:** ${task.userStoryIds.length > 0 ? task.userStoryIds.map((id) => `\`${id}\`${storiesById.get(id) ? '' : ' (missing)'}`).join(', ') : '_none linked_'}`,
           );
-          lines.push(`  - ${task.description}`);
+          lines.push(`  - ${this.formatAgentTaskDescription(task, plan)}`);
           if (task.acceptanceCriteria.length) {
             lines.push('  - **Acceptance criteria:**');
             for (const ac of task.acceptanceCriteria) {
@@ -829,7 +896,14 @@ export class MarkdownRendererService {
             }
           }
         }
-        for (const synth of synthetics) {
+        for (const { task, primaryStoryId } of crossRefs) {
+          const snippet = (task.description ?? '').slice(0, 60).trim();
+          const ellipsis = (task.description ?? '').length > 60 ? '…' : '';
+          lines.push(
+            `- [ ] ${next()} (ref ${primaryStoryId}) [${story.id}] — implementation lives in ${primaryStoryId} (${snippet}${ellipsis})`,
+          );
+        }
+        for (const synth of syntheticsForStory) {
           const storyTags = synth.userStoryIds.length > 0
             ? `${synth.userStoryIds.map((id) => `[${id}]`).join(' ')} `
             : '';
@@ -845,6 +919,37 @@ export class MarkdownRendererService {
           }
         }
       }
+
+      if (story.onboarding) {
+        const onboardingSuffixes = [
+          'onboarding-route',
+          'voice-record-ui',
+          'avatar-picker-ui',
+          'save-flow-sanitise',
+        ];
+        for (const suffix of onboardingSuffixes) {
+          const title = ONBOARDING_SUBTASK_TITLES[suffix];
+          lines.push(`- [ ] ${next()} (onboarding) [${story.id}] ${title}`);
+        }
+      }
+
+      const roundTripFrs = (plan.functionalRequirements ?? []).filter(
+        (fr) => fr.validationProfile === 'round-trip' || fr.roundTripRequired,
+      );
+      for (const fr of roundTripFrs) {
+        const matchingSc =
+          (plan.successCriteria ?? []).find((s) => s.text.toLowerCase().includes('reimport')) ??
+          (plan.successCriteria ?? []).find((s) => s.id === 'SC-005b');
+        lines.push(
+          `- [ ] ${next()} [${story.id}] ${fr.id} round-trip: export → wipe local store → import → re-validate against ${matchingSc?.id ?? 'SC-005b'}`,
+        );
+        if (!matchingSc) {
+          lines.push(
+            `- [ ] ${next()} [POLISH] SC-005b — exported-then-reimported ${fr.id} bundle yields identical checksum within 60s p95`,
+          );
+        }
+      }
+
       lines.push('');
       phaseNum += 1;
     }
@@ -884,6 +989,42 @@ export class MarkdownRendererService {
     );
 
     return lines.join('\n');
+  }
+
+  /**
+   * Returns the components that intersect this story's bounded contexts.
+   * Used by the TDD spec emitter to keep test work scoped to what the
+   * story actually touches (Article 1 / H6).
+   */
+  private componentsForStory(story: UserStory, plan: Plan): DomainComponent[] {
+    const ids = new Set(story.boundedContextIds ?? []);
+    if (ids.size === 0) {
+      return plan.domains?.flatMap((d) => d.components ?? []) ?? [];
+    }
+    const out: DomainComponent[] = [];
+    for (const d of plan.domains ?? []) {
+      if (!ids.has(d.id) && !ids.has(d.layer)) continue;
+      for (const c of d.components ?? []) out.push(c);
+    }
+    return out;
+  }
+
+  /**
+   * Returns the description text used in the rendered `tasks.md` block for
+   * an agent task. When the task description names a LangChain-style
+   * retrieval step but the plan does not declare `agentFramework === 'langchain'`,
+   * the text is rewritten to the deterministic-embedding fallback so the
+   * emitted plan does not contradict itself.
+   */
+  private formatAgentTaskDescription(task: AgentTask, plan: Plan): string {
+    const usesLangChain = plan.agentFramework === 'langchain';
+    const text = task.description ?? '';
+    if (usesLangChain) return text;
+    if (!/LangChain|Lang\s?Chain/i.test(text)) return text;
+    return text.replace(
+      new RegExp(RETRIEVAL_DESCRIPTION_LANGCHAIN, 'gi'),
+      RETRIEVAL_DESCRIPTION_FALLBACK,
+    );
   }
 
   /**
@@ -1022,8 +1163,15 @@ export class MarkdownRendererService {
       },
     ];
 
+    const contextIds = new Set(story.boundedContextIds ?? []);
     for (const cluster of clusters) {
       if (!cluster.re.test(text)) continue;
+      if (contextIds.size > 0) {
+        const matchesContext =
+          [...contextIds].some((id) => id.includes(cluster.id) || cluster.id.includes(id)) ||
+          [...contextIds].some((id) => cluster.re.test(id));
+        if (!matchesContext) continue;
+      }
       out.push({
         id: `synth-${story.id}-${cluster.id}`,
         title: cluster.title,
@@ -1072,8 +1220,10 @@ export class MarkdownRendererService {
 
   /**
    * Walks `plan.successCriteria` and emits one measurement-harness task per
-   * criterion that is not already covered by an `agentTask` whose
-   * description names the SC id. Pure heuristic — no LLM call.
+   * criterion. Latency / time-budget / completion-rate SCs are always emitted
+   * (even if a task description already references the SC id) because they
+   * imply a concrete harness with timing code; boolean SCs are only emitted
+   * when no agent task already references the SC id.
    */
   private synthesiseMeasurementTasks(
     plan: Plan,
@@ -1081,11 +1231,19 @@ export class MarkdownRendererService {
     const out: { scRef: string; title: string; implementation: string }[] = [];
     const tasks = plan.agentTasks ?? [];
     for (const sc of plan.successCriteria ?? []) {
+      const kind = sc.kind ?? 'boolean';
+      const alwaysEmit = kind === 'latency' || kind === 'time-budget' || kind === 'completion-rate';
       const covered = tasks.some((t) => (t.description ?? '').includes(sc.id));
-      if (covered) continue;
+      if (!alwaysEmit && covered) continue;
+      const budget =
+        kind === 'latency' && sc.latencyTargetMs
+          ? ` (budget: ${sc.latencyTargetMs}ms p95)`
+          : kind === 'time-budget'
+            ? ' (budget: see SC text)'
+            : '';
       out.push({
         scRef: sc.id,
-        title: `Build the ${sc.id} measurement harness`,
+        title: `Build the ${sc.id} measurement harness${budget}`,
         implementation: `Implement the ${sc.id} criteria: ${sc.text}`,
       });
     }
@@ -1557,10 +1715,37 @@ export class MarkdownRendererService {
   }
 
   private buildAdrFiles(plan: Plan, prefix: string): MarkdownFile[] {
-    return plan.adrs.map((adr, i) => ({
+    const existing = plan.adrs.map((adr, i) => ({
       path: `${prefix}/docs/20-decisions/adr-${String(i + 1).padStart(3, '0')}-${slugify(adr.title)}.md`,
       content: this.buildAdrMd(adr),
     }));
+    if (plan.agentFramework) {
+      const framework = plan.agentFramework;
+      const rejected = framework === 'langgraph' ? ['langchain', 'none'] : ['langgraph'];
+      existing.unshift({
+        path: `${prefix}/docs/20-decisions/ADR-0001-agent-framework.md`,
+        content: [
+          '# ADR-0001 — Agent Framework',
+          '',
+          '**Status:** `accepted`',
+          '',
+          '## Context',
+          '',
+          `The plan needs a single, explicit decision about the agent framework so downstream tasks (\`tasks.md\`) can refer to it unambiguously.`,
+          '',
+          '## Decision',
+          '',
+          `Chosen framework: **${framework}**. ${framework === 'none' ? 'The plan relies on deterministic retrieval via the chosen embedding model (FR-010) rather than an agent runtime.' : 'The chosen framework powers the agentic pipeline end-to-end.'}`,
+          '',
+          '## Consequences',
+          '',
+          `- \`tasks.md\` retrieval tasks cite the framework explicitly (no LangChain drift).`,
+          `- ${rejected.map((r) => `\`${r}\` rejected${r === 'none' ? ' — keeps the runtime surface small' : ' — kept available as a fallback if FR-010 changes'}`).join('\n- ')}`,
+          '',
+        ].join('\n'),
+      });
+    }
+    return existing;
   }
 
   private buildAdrMd(adr: Adr): string {

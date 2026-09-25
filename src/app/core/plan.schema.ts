@@ -76,8 +76,36 @@ export const PRIORITY_PATTERN = /^P[123]$/;
 export const USER_STORY_ID_PATTERN = /^US\d{3,}$/;
 export const FR_ID_PATTERN = /^FR-\d{3,}$/;
 export const SC_ID_PATTERN = /^SC-\d{3,}$/;
+export const NFR_ID_PATTERN = /^NFR-\d{3,}$/;
 export const ACCEPTANCE_SCENARIO_ID_PATTERN = /^(FR|SC|AS)-\d{3,}$/;
 export const BRANCH_NAME_PATTERN = /^\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export const NFR_CATEGORIES = [
+  'accessibility',
+  'type-safety',
+  'security',
+  'observability',
+  'other',
+] as const;
+export type NfrCategory = (typeof NFR_CATEGORIES)[number];
+
+export const VALIDATION_PROFILES = [
+  'round-trip',
+  'deterministic-embedding',
+  'none',
+] as const;
+export type ValidationProfile = (typeof VALIDATION_PROFILES)[number];
+
+export const SC_KINDS = [
+  'latency',
+  'time-budget',
+  'completion-rate',
+  'boolean',
+] as const;
+export type SuccessCriterionKind = (typeof SC_KINDS)[number];
+
+export const AGENT_FRAMEWORKS = ['none', 'langchain', 'langgraph'] as const;
+export type AgentFramework = (typeof AGENT_FRAMEWORKS)[number];
 
 const AcceptanceScenarioSchema = z.object({
   id: z.string().regex(ACCEPTANCE_SCENARIO_ID_PATTERN, 'Use FR-NNN / SC-NNN / AS-NNN'),
@@ -91,11 +119,15 @@ const FunctionalRequirementSchema = z.object({
   text: z.string().min(1),
   needsClarification: z.boolean().default(false),
   clarificationNote: z.string().optional(),
+  validationProfile: z.enum(VALIDATION_PROFILES).default('none').optional(),
+  roundTripRequired: z.boolean().default(false).optional(),
 });
 
 const SuccessCriterionSchema = z.object({
   id: z.string().regex(SC_ID_PATTERN),
   text: z.string().min(1),
+  kind: z.enum(SC_KINDS).default('boolean').optional(),
+  latencyTargetMs: z.number().int().positive().optional(),
 });
 
 const UserStorySchema = z.object({
@@ -107,6 +139,7 @@ const UserStorySchema = z.object({
   independentTest: z.string().min(1),
   acceptanceScenarios: z.array(AcceptanceScenarioSchema).min(1).transform((arr) => capArray(arr, ACCEPTANCE_SCENARIOS_MAX)),
   boundedContextIds: z.array(z.string().min(1)).default([]),
+  onboarding: z.boolean().default(false).optional(),
 });
 
 const ConstitutionArticleSchema = z.object({
@@ -335,6 +368,7 @@ const AgentTaskSchema = z.object({
       'other',
     ])
     .optional(),
+  constitutionArticle: z.number().int().min(1).max(CONSTITUTION_ARTICLES_MAX).optional(),
 });
 
 export const PlanSchema = z.object({
@@ -382,6 +416,17 @@ export const PlanSchema = z.object({
   adrs: z.array(AdrSchema).default([]),
   agentTasks: z.array(AgentTaskSchema).default([]),
   refinementChats: z.array(RefinementChatSessionSchema).default([]),
+  agentFramework: z.enum(AGENT_FRAMEWORKS).default('none').optional(),
+  nonFunctionalRequirements: z
+    .array(
+      z.object({
+        id: z.string().regex(NFR_ID_PATTERN),
+        text: z.string().min(1),
+        category: z.enum(NFR_CATEGORIES),
+      }),
+    )
+    .default([])
+    .optional(),
 });
 
 export const LayerChunkSchema = z.union([
@@ -465,4 +510,9 @@ export type SuccessCriterion = z.infer<typeof SuccessCriterionSchema>;
 export type AcceptanceScenario = z.infer<typeof AcceptanceScenarioSchema>;
 export type ConstitutionArticle = z.infer<typeof ConstitutionArticleSchema>;
 export type Constitution = z.infer<typeof ConstitutionSchema>;
+export type NonFunctionalRequirement = {
+  id: string;
+  text: string;
+  category: NfrCategory;
+};
 type ComplexityEntry = z.infer<typeof ComplexityEntrySchema>;

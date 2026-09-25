@@ -145,6 +145,14 @@ Output a JSON array shaped as:
   "tableRowErrors": ["Technical Context row 'Storage' is missing", ...]
 }
 
+Additionally, the rendered \`tasks.md\` MUST contain a Phase 2 entry for each of the following patterns (renderer synthesises these from the Constitution Pack; flag when missing):
+
+- \`xface-.*-cli CLI\` — CLI subcommand scaffolding per bounded context (Article 2).
+- \`Integration tests.*provider\` — Vitest + pytest integration specs per provider adapter (Article 4).
+- \`Observability.*local dashboard\` — Prometheus + Grafana dashboard (Article 5).
+
+Report any missing pattern under \`missingSections\` with the literal pattern string.
+
 Only list what is missing or wrong — do not echo the requirements. If a document is missing entirely, report the layer with all required sections in missingSections. Do not propose fixes; only report.`,
       },
       {

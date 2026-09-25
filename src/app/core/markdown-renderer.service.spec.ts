@@ -1005,13 +1005,14 @@ describe('MarkdownRendererService', () => {
       );
     });
 
-    it('emits the langchain exclusion sub-line when LangChain is absent', () => {
+    it('emits the agent-framework exclusion sub-line when LangChain is absent and agentFramework is unset', () => {
       const files = service.toMarkdownFiles(minimalPlanFixture);
       const planMd = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
-      expect(planMd.content).toContain('LangChain / LangGraph intentionally omitted');
+      expect(planMd.content).toContain('Agent framework: none');
+      expect(planMd.content).toContain('ADR-0001');
     });
 
-    it('emits a Source Code (mapped to tasks) sub-block listing directories from agentTasks.fileHints', () => {
+    it('emits a single Source Code block listing directories from agentTasks.fileHints (no separate mapped sub-block)', () => {
       const plan: Plan = {
         ...minimalPlanFixture,
         agentTasks: [
@@ -1028,7 +1029,7 @@ describe('MarkdownRendererService', () => {
       };
       const files = service.toMarkdownFiles(plan);
       const planMd = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
-      expect(planMd.content).toContain('### Source Code (mapped to tasks)');
+      expect(planMd.content).not.toContain('### Source Code (mapped to tasks)');
       expect(planMd.content).toContain('src/app/features/planner/contracts/');
     });
 
@@ -1083,13 +1084,14 @@ describe('MarkdownRendererService', () => {
       expect(tasks.content).toContain('SC-002 measurement harness');
     });
 
-    it('synthesises starter synthetic tasks when a User Story has no related agentTask', () => {
+    it('synthesises starter synthetic tasks scoped to the story bounded contexts (D6)', () => {
       const plan: Plan = {
         ...minimalPlanFixture,
         agentTasks: [],
         userStories: [
           {
             ...minimalPlanFixture.userStories[0],
+            boundedContextIds: ['image-gen-pipeline', 'persona-edit-surface'],
             description:
               'Wire the image-generation pipeline and support persona-edit so the operator can re-roll.',
           },
@@ -1198,13 +1200,14 @@ describe('MarkdownRendererService', () => {
       expect(noteIdx).toBeGreaterThan(specLinkIdx);
     });
 
-    it('emits the Fill ONLY blockquote intro above Complexity Tracking when tracking is populated', () => {
+    it('emits the Fill ONLY blockquote intro above Complexity Tracking when tracking is populated AND a constitution gate fails', () => {
       const layer = minimalPlanFixture.architectureLayers[0];
       const plan: Plan = {
         ...minimalPlanFixture,
         architectureLayers: [
           {
             ...layer,
+            constitutionCheck: ['❌ Article 2 — CLI surface missing for at least one bounded context'],
             complexityTracking: [
               {
                 violation: 'Repository pattern',

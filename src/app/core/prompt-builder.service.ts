@@ -734,6 +734,16 @@ g) "constitution" — REQUIRED. The project constitution as an object: { project
 
    Each article: { articleNumber: 1..9, title, content (one or more sentences) }. Fill the article "content" strings from autoArchitect's stack (Standalone Angular, signalStore, JSZip, Vitest/Jasmine, DOMPurify, Zod, LangChain, no SSR) and from the plan's constraints / NFRs / bounded contexts. Do NOT invent stack choices outside autoArchitect defaults.
 
+   The plan MUST satisfy this Constitution Pack (enforced by the renderer):
+
+   - Article 2 (CLI Interface) — for every bounded context, emit one task per CLI subcommand (\`bootstrap-avatar\`, \`replay-transcript\`, \`run-harness\`) plus a top-level composer task.
+   - Article 4 (Integration Testing) — for every provider adapter the plan lists (\`minimaxLlm\`, \`minimaxStt\`, \`minimaxTts\`, \`minimaxImage\`, \`minimaxVoiceClone\`), emit one Vitest integration spec AND one pytest integration spec, plus a CI integration gate and a coverage matrix task.
+   - Article 5 (Observability) — emit a structured logging contract, metrics emitters for \`turn_latency_ms\`, \`stt_latency_ms\`, \`tts_first_byte_ms\`, \`memory_recall_latency_ms\`, a local Prometheus + Grafana dashboard, and wire-up tasks for both FastAPI sidecar and Angular SPA.
+
+   Additionally:
+   - The plan JSON MUST include an \`agentFramework\` field set to one of \`'none' | 'langchain' | 'langgraph'\`.
+   - When emitting \`[NEEDS CLARIFICATION]\` markers, place the note text in \`clarificationNote\` and emit at most one marker per FR. The renderer normalises nested markers, so do NOT double-wrap (\`[NEEDS CLARIFICATION: NEEDS CLARIFICATION: …]\`).
+
 Hard rule: do NOT include any mermaid content for user stories or constitution — those live in "Plan.userStories" and "Plan.constitution" only. The renderer emits them as plain Markdown in spec.md and .specify/memory/constitution.md.
 
 ━━━ COVERAGE MATRIX (every ID must have at least one downstream artefact) ━━━
