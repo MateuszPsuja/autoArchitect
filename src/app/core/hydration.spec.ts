@@ -13,8 +13,19 @@ import {
   DEMO_SAVED_PLAN_ID,
 } from './hydration';
 import { minimalPlanFixture } from '../testing/fixtures';
-import { MICROBLOG_DEMO_PLAN, MICROBLOG_DEMO_TOKEN_STATS } from './demo-plan/microblog.plan';
+import {
+  _setDemoPlanCacheForTests,
+  getDemoTokenStats,
+} from './demo-plan/demo-plan.loader';
+import { loadDemoPlanFixture } from './demo-plan/demo-plan.fixture';
 import { branchName } from './feature-slug';
+
+const demoFixture = loadDemoPlanFixture();
+const MICROBLOG_DEMO_PLAN = demoFixture.plan;
+
+beforeEach(() => {
+  _setDemoPlanCacheForTests(MICROBLOG_DEMO_PLAN);
+});
 
 class MemoryStorage implements Storage {
   private store = new Map<string, string>();
@@ -329,7 +340,7 @@ describe('refreshDemoPlanEntries', () => {
         title: MICROBLOG_DEMO_PLAN.meta.title,
         savedAt: MICROBLOG_DEMO_PLAN.meta.generatedAt,
         model: MICROBLOG_DEMO_PLAN.meta.model,
-        tokenStats: MICROBLOG_DEMO_TOKEN_STATS,
+        tokenStats: getDemoTokenStats(),
         plan: MICROBLOG_DEMO_PLAN,
       },
     ];

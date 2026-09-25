@@ -1,11 +1,26 @@
 import { TestBed } from '@angular/core/testing';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { RefineWithAiComponent } from './refine-with-ai.component';
 import { ProjectStore } from '../../../core/project.store';
 import { RefinementChatService } from '../../../core/refinement/refinement-chat.service';
-import { MICROBLOG_DEMO_PLAN } from '../../../core/demo-plan/microblog.plan';
+import {
+  _resetDemoPlanCacheForTests,
+  _setDemoPlanCacheForTests,
+} from '../../../core/demo-plan/demo-plan.loader';
+import { loadDemoPlanFixture } from '../../../core/demo-plan/demo-plan.fixture';
 import type { Plan } from '../../../core/plan.schema';
 import type { RefinementChatLlmResponse } from '../../../core/refinement/refinement-chat.schema';
+
+const demoFixture = loadDemoPlanFixture();
+const MICROBLOG_DEMO_PLAN = demoFixture.plan;
+
+beforeEach(() => {
+  _setDemoPlanCacheForTests(demoFixture.plan);
+});
+
+afterEach(() => {
+  _resetDemoPlanCacheForTests();
+});
 
 if (typeof (globalThis as { ResizeObserver?: unknown }).ResizeObserver === 'undefined') {
   (globalThis as { ResizeObserver: unknown }).ResizeObserver = class {
@@ -35,6 +50,13 @@ describe('RefineWithAiComponent', () => {
         },
       ],
     });
+    // ProjectStore is providedIn: 'root' — the singleton can leak across
+    // parallel specs in the same worker even after TestBed.resetTestingModule().
+    // Force a clean store so the empty-plan copy renders.
+    const store = TestBed.inject(ProjectStore) as unknown as {
+      closePlan: () => void;
+    };
+    store.closePlan();
     const fixture = TestBed.createComponent(RefineWithAiComponent);
     fixture.detectChanges();
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';

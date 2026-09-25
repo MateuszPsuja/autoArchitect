@@ -6,12 +6,14 @@ import { providePrimeNG } from 'primeng/config';
 import Aura from '@primeuix/themes/aura';
 
 import { routes } from './app.routes';
+import { provideDemoPlanInitializer } from './core/demo-plan/demo-plan.loader';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(),
+    provideDemoPlanInitializer(),
     provideAnimationsAsync(),
     providePrimeNG({
       theme: {

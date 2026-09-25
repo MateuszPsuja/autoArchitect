@@ -1,9 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectStore } from './project.store';
-import { MICROBLOG_DEMO_PLAN } from './demo-plan/microblog.plan';
+import { loadDemoPlanFixture } from './demo-plan/demo-plan.fixture';
+import {
+  _resetDemoPlanCacheForTests,
+  _setDemoPlanCacheForTests,
+} from './demo-plan/demo-plan.loader';
 import { Plan } from './plan.schema';
 import { DiagramAuditService } from './diagram-audit.service';
+
+const MICROBLOG_DEMO_PLAN = loadDemoPlanFixture().plan;
 
 describe('ProjectStore', () => {
   let storage: Record<string, string>;
@@ -23,6 +29,7 @@ describe('ProjectStore', () => {
         storage = {};
       }),
     });
+    _setDemoPlanCacheForTests(MICROBLOG_DEMO_PLAN);
     TestBed.resetTestingModule();
   });
 
@@ -31,6 +38,7 @@ describe('ProjectStore', () => {
     vi.clearAllTimers();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    _resetDemoPlanCacheForTests();
     TestBed.resetTestingModule();
   });
 

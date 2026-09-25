@@ -26,7 +26,7 @@ import {
   REFINE_MORE_QUESTION_ID,
 } from './refinement/refinement.constants';
 import { StateSnapshot } from './state-snapshot.model';
-import { MICROBLOG_DEMO_PLAN } from './demo-plan/microblog.plan';
+import { getDemoPlan } from './demo-plan/demo-plan.loader';
 import { PERSIST_DEBOUNCE_MS, PLANNER_INPUT_STORAGE_KEY } from './persistence.constants';
 import { AuditFinding } from './audit-runner.service';
 import { DiagramAuditReport, DiagramAuditService } from './diagram-audit.service';
@@ -1022,11 +1022,15 @@ export const ProjectStore = signalStore(
 
 
       if (entry.id === DEMO_SAVED_PLAN_ID) {
+        const demoPlan = getDemoPlan();
+        if (!demoPlan) {
+          return;
+        }
         const refreshed: SavedPlanEntry = {
           ...entry,
-          plan: MICROBLOG_DEMO_PLAN,
-          title: MICROBLOG_DEMO_PLAN.meta.title,
-          savedAt: MICROBLOG_DEMO_PLAN.meta.generatedAt,
+          plan: demoPlan,
+          title: demoPlan.meta.title,
+          savedAt: demoPlan.meta.generatedAt,
         };
         const withoutCurrent = store.savedPlans().filter((saved) => saved.id !== entry.id);
         patchState(store, {

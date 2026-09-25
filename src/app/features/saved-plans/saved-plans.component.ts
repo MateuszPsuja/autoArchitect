@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { ProjectStore } from '../../core/project.store';
-import { isDemoPlan } from '../../core/demo-plan/microblog.plan';
+import { isDemoPlan } from '../../core/demo-plan/demo-plan.loader';
 
 @Component({
   selector: 'app-saved-plans',

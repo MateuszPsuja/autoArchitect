@@ -12,10 +12,10 @@ import {
 import { SavedPlanEntry } from './saved-plan-entry.model';
 import { TokenUsage } from './token-usage.model';
 import {
-  MICROBLOG_DEMO_PLAN,
-  MICROBLOG_DEMO_TOKEN_STATS,
+  getDemoPlan,
+  getDemoTokenStats,
   isDemoPlan,
-} from './demo-plan/microblog.plan';
+} from './demo-plan/demo-plan.loader';
 
 export const PLAN_STORAGE_KEY = STORAGE_KEYS.plan;
 export const CONFIG_STORAGE_KEY = STORAGE_KEYS.config;
@@ -260,20 +260,26 @@ export function hydrateSavedPlans(raw: string | null): SavedPlansHydrationResult
 export function seedDemoPlan(savedPlans: SavedPlanEntry[], dismissed: boolean): SavedPlanEntry[] {
   if (dismissed) return savedPlans;
   if (savedPlans.some((s) => s.id === DEMO_SAVED_PLAN_ID)) return savedPlans;
+  const demoPlan = getDemoPlan();
+  const demoStats = getDemoTokenStats();
+  if (!demoPlan || !demoStats) return savedPlans;
   return [
     {
       id: DEMO_SAVED_PLAN_ID,
-      title: MICROBLOG_DEMO_PLAN.meta.title,
-      savedAt: MICROBLOG_DEMO_PLAN.meta.generatedAt,
-      model: MICROBLOG_DEMO_PLAN.meta.model,
-      tokenStats: MICROBLOG_DEMO_TOKEN_STATS,
-      plan: MICROBLOG_DEMO_PLAN,
+      title: demoPlan.meta.title,
+      savedAt: demoPlan.meta.generatedAt,
+      model: demoPlan.meta.model,
+      tokenStats: demoStats,
+      plan: demoPlan,
     },
     ...savedPlans,
   ];
 }
 
 export function refreshDemoPlanEntries(savedPlans: SavedPlanEntry[]): SavedPlanEntry[] {
+  const demoPlan = getDemoPlan();
+  const demoStats = getDemoTokenStats();
+  if (!demoPlan || !demoStats) return savedPlans;
   let mutated = false;
   const next = savedPlans.map((entry) => {
     if (entry.id !== DEMO_SAVED_PLAN_ID) return entry;
@@ -281,23 +287,26 @@ export function refreshDemoPlanEntries(savedPlans: SavedPlanEntry[]): SavedPlanE
     mutated = true;
     return {
       ...entry,
-      plan: MICROBLOG_DEMO_PLAN,
-      title: MICROBLOG_DEMO_PLAN.meta.title,
-      savedAt: MICROBLOG_DEMO_PLAN.meta.generatedAt,
-      tokenStats: entry.tokenStats ?? MICROBLOG_DEMO_TOKEN_STATS,
+      plan: demoPlan,
+      title: demoPlan.meta.title,
+      savedAt: demoPlan.meta.generatedAt,
+      tokenStats: entry.tokenStats ?? demoStats,
     };
   });
   return mutated ? next : savedPlans;
 }
 
 export function refreshStaleDemoPlan(plan: Plan): Plan {
-  if (plan.meta?.title !== MICROBLOG_DEMO_PLAN.meta.title) return plan;
-  return MICROBLOG_DEMO_PLAN;
+  const demoPlan = getDemoPlan();
+  if (!demoPlan) return plan;
+  if (plan.meta?.title !== demoPlan.meta.title) return plan;
+  return demoPlan;
 }
 
 function resolveStats(raw: unknown, plan: Plan): TokenUsage | null {
   if (isTokenUsage(raw)) return raw;
-  return isDemoPlan(plan) ? MICROBLOG_DEMO_TOKEN_STATS : null;
+  if (!isDemoPlan(plan)) return null;
+  return getDemoTokenStats();
 }
 
 function isPlanObject(value: unknown): value is Plan {

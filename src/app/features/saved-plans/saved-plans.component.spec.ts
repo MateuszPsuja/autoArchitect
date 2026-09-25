@@ -1,13 +1,28 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { ProjectStore } from '../../core/project.store';
 import { SavedPlanEntry } from '../../core/saved-plan-entry.model';
-import { MICROBLOG_DEMO_PLAN } from '../../core/demo-plan/microblog.plan';
+import {
+  _resetDemoPlanCacheForTests,
+  _setDemoPlanCacheForTests,
+} from '../../core/demo-plan/demo-plan.loader';
+import { loadDemoPlanFixture } from '../../core/demo-plan/demo-plan.fixture';
 import { minimalPlanFixture } from '../../testing/fixtures';
 import { SavedPlansComponent } from './saved-plans.component';
 
+const demoFixture = loadDemoPlanFixture();
+const MICROBLOG_DEMO_PLAN = demoFixture.plan;
+
 describe('SavedPlansComponent', () => {
+  beforeEach(() => {
+    _setDemoPlanCacheForTests(demoFixture.plan);
+  });
+
+  afterEach(() => {
+    _resetDemoPlanCacheForTests();
+  });
+
   function setup(entries: SavedPlanEntry[]) {
     const savedPlans = signal(entries);
     const loadSavedPlan = vi.fn();

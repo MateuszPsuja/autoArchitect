@@ -6,7 +6,9 @@ import {
   type UserEditSummary,
 } from './user-edit-summary';
 import { Plan } from '../plan.schema';
-import { MICROBLOG_DEMO_PLAN } from '../demo-plan/microblog.plan';
+import { loadDemoPlanFixture } from '../demo-plan/demo-plan.fixture';
+
+const MICROBLOG_DEMO_PLAN = loadDemoPlanFixture().plan;
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
