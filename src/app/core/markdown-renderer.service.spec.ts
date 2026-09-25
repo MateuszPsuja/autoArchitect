@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MarkdownRendererService } from './markdown-renderer.service';
+import { MarkdownRendererService, replaceVagueAdjectives } from './markdown-renderer.service';
 import { minimalPlanFixture } from '../testing/fixtures';
 import { Plan } from './plan.schema';
 import { featureFolder } from './feature-slug';
@@ -1264,4 +1264,268 @@ describe('MarkdownRendererService', () => {
       expect(tasks.content).toContain('T103     [US001] Wire the Post REST controller');
     });
   });
+
+  describe('spec.md /speckit-analyze improvements', () => {
+    function findSpec(plan: Plan): { path: string; content: string } {
+      const files = service.toMarkdownFiles(plan);
+      const file = files.find((f) => f.path === `${PREFIX}/spec.md`);
+      expect(file).toBeTruthy();
+      return file!;
+    }
+
+    function planWithFr010(needsClarification: boolean): Plan {
+      return {
+        ...minimalPlanFixture,
+        functionalRequirements: [
+          ...minimalPlanFixture.functionalRequirements,
+          {
+            id: 'FR-010',
+            text: 'embedding model + dimension [NEEDS CLARIFICATION: which model and dimension?]',
+            needsClarification,
+          },
+        ],
+      };
+    }
+
+    it('renders the inline (resolved at generation time) paragraph for FR-010 and drops the [NEEDS CLARIFICATION] marker', () => {
+      const { content } = findSpec(planWithFr010(true));
+      expect(content).toContain('**FR-010** (resolved at generation time)');
+      expect(content).toContain('Embedding Versioning');
+      expect(content).not.toMatch(/\[NEEDS CLARIFICATION[^\]]*embedding/i);
+      const fr010Idx = content.indexOf('**FR-010**');
+      expect(fr010Idx).toBeGreaterThan(-1);
+      const block = content.slice(fr010Idx, fr010Idx + 800);
+      expect(block).toContain('MiniMax text-embedding-v1');
+      expect(block).toContain('deterministic-embedding');
+      expect(block).toContain('Schema migration');
+      expect(block).toContain('Sample backfill');
+    });
+
+    it('renders FR-010 normally when the LLM did not flag it as needsClarification', () => {
+      const { content } = findSpec(planWithFr010(false));
+      expect(content).toContain('**FR-010** —');
+      expect(content).not.toContain('(resolved at generation time)');
+    });
+
+    it('emits the new top-level spec-kit sections (Offline Behaviour, Accessibility, Glossary, Non-Goals, Open Questions, Preconditions & Constraints)', () => {
+      const { content } = findSpec({
+        ...minimalPlanFixture,
+        offlineContract: {
+          cacheableAssets: ['avatar-manifest.json'],
+          degrade: [
+            { capability: 'llm', mode: 'queue', reason: 'Queue requests for replay on reconnect.' },
+            { capability: 'stt', mode: 'cached', reason: 'Use the cached STT bundle.' },
+          ],
+          uiIndicator: 'A persistent banner shows the offline state.',
+          replayOnReconnect: ['queue:llm-turn'],
+        },
+        accessibilityRequirements: [
+          { id: 'FR-A11Y-001', text: 'keyboard navigation across the avatar surface', needsClarification: false },
+          { id: 'FR-A11Y-002', text: 'captions toggle persisted', needsClarification: false },
+        ],
+        agentTasks: [
+          {
+            ...minimalPlanFixture.agentTasks[0],
+            description: 'NEEDS CLARIFICATION: which auth provider should we use?',
+          },
+        ],
+        meta: {
+          ...minimalPlanFixture.meta,
+          operationalConstraints: {
+            sidecarBind: '127.0.0.1',
+            auth: 'none',
+            multiTenantBan: 'enforced at sidecar listen address',
+          },
+        },
+      });
+
+      expect(content).toContain('## Offline Behaviour');
+      expect(content).toContain('## Preconditions & Constraints');
+      expect(content).toContain('## Non-Goals');
+      expect(content).toContain('## Open Questions');
+      expect(content).toContain('## Glossary');
+      expect(content).toContain('### Accessibility');
+      expect(content).toContain('FR-A11Y-001');
+      expect(content).toContain('FR-A11Y-002');
+      expect(content).toContain('Per-capability degradation matrix');
+      expect(content).toContain('<!-- anchor: open-questions -->');
+    });
+
+    it('warns with the multi-tenant-ban marker when sidecarBind is 0.0.0.0', () => {
+      const { content } = findSpec({
+        ...minimalPlanFixture,
+        meta: {
+          ...minimalPlanFixture.meta,
+          operationalConstraints: {
+            sidecarBind: '0.0.0.0',
+            auth: 'none',
+            multiTenantBan: 'enforced at sidecar listen address',
+          },
+        },
+      });
+      expect(content).toContain('⚠️ MULTI-TENANT-BAN VIOLATION: sidecar binds 0.0.0.0');
+    });
+
+    it('renders ↔ FR- and ↔ SC- cross-reference bullets on each user story', () => {
+      const { content } = findSpec({
+        ...minimalPlanFixture,
+        userStories: [
+          {
+            ...minimalPlanFixture.userStories[0],
+            description:
+              'Validate FR-001, FR-002, and SC-001 against the plan; the renderer should surface them as cross-refs.',
+          },
+        ],
+        functionalRequirements: [
+          { id: 'FR-001', text: 'a', needsClarification: false },
+          { id: 'FR-002', text: 'b', needsClarification: false },
+        ],
+        successCriteria: [{ id: 'SC-001', text: 'c' }],
+      });
+      expect(content).toContain('↔ FR-001');
+      expect(content).toContain('↔ FR-002');
+      expect(content).toContain('↔ SC-001');
+    });
+
+    it('appends a US-007 transcript export skeleton when no US-007 is in the plan', () => {
+      const { content } = findSpec(minimalPlanFixture);
+      expect(content).toContain('### User Story US007 — Transcript export');
+      expect(content).toContain('Transcript format:');
+    });
+
+    it('renders the Personality key entity as a first-class entry under Key Entities', () => {
+      const { content } = findSpec({
+        ...minimalPlanFixture,
+        keyEntities: [
+          {
+            id: 'Personality',
+            name: 'Personality',
+            description: 'A user-authored persona document.',
+            fields: [
+              { name: 'voice', type: 'string', rules: ['≤ 2000 chars', 'DOMPurify-scrubbed'] },
+            ],
+            invariants: ['voice must round-trip the export pipeline unchanged'],
+          },
+          {
+            id: 'Avatar',
+            name: 'Avatar',
+            description: 'An avatar record.',
+            fields: [],
+            invariants: [],
+          },
+        ],
+      });
+      const personalityIdx = content.indexOf('**Personality** _(first-class)_');
+      const avatarIdx = content.indexOf('**Avatar**');
+      expect(personalityIdx).toBeGreaterThan(-1);
+      expect(avatarIdx).toBeGreaterThan(-1);
+      expect(personalityIdx).toBeLessThan(avatarIdx);
+      expect(content).toContain('`voice`: string _(rules: ≤ 2000 chars; DOMPurify-scrubbed)_');
+      expect(content).toContain('voice must round-trip the export pipeline unchanged');
+    });
+
+    it('renders the Avatar Bundle Schema block when plan.meta.avatarBundleSpec is present', () => {
+      const { content } = findSpec({
+        ...minimalPlanFixture,
+        meta: {
+          ...minimalPlanFixture.meta,
+          avatarBundleSpec: {
+            manifestVersion: '1',
+            manifestKeys: ['id', 'name', 'voiceUrl'],
+            importValidatorRef: 'src/app/core/avatar-import.ts',
+          },
+        },
+      });
+      expect(content).toContain('### Avatar Bundle Schema');
+      expect(content).toContain('**Manifest version:** `1`');
+      expect(content).toContain('`id`, `name`, `voiceUrl`');
+    });
+
+    it('renders the Measurable Outcomes table with the Measurement Scenario column when any SC has one', () => {
+      const { content } = findSpec({
+        ...minimalPlanFixture,
+        successCriteria: [
+          { id: 'SC-001', text: 'A user can produce a valid Plan in under 90 seconds.' },
+          { id: 'SC-003', text: 'A warm session reaches the same UX as a cold session within 3 minutes.' },
+          { id: 'SC-005', text: 'boolean gate', measurementScenario: 'sample size n=10' },
+        ],
+      });
+      expect(content).toContain('| ID | Outcome | Measurement Scenario |');
+      expect(content).toContain('warm session, single avatar, 10 Mbps');
+      expect(content).toContain('warm session = ≤3 min idle');
+      expect(content).toContain('sample size n=10');
+    });
+
+    it('lifts the canonical edge-case FRs into the Functional Requirements when their trigger phrases appear in constraints', () => {
+      const { content } = findSpec({
+        ...minimalPlanFixture,
+        architectureLayers: [
+          {
+            ...minimalPlanFixture.architectureLayers[0],
+            constitutionCheck: ['Strict TypeScript', 'codegen:check in CI'],
+          },
+        ],
+        systemOverview: {
+          ...minimalPlanFixture.systemOverview,
+          constraints: ['Domain has no framework imports', 'No secrets in production bundle'],
+        },
+      });
+      expect(content).toContain('**FR-SEC-001**');
+      expect(content).toContain('**FR-TS-001**');
+      expect(content).toContain('**FR-NOFRAME-001**');
+      expect(content).toContain('**FR-CGCHK-001**');
+    });
+
+    it('seeds ## Non-Goals and ## Glossary from the canonical defaults when the plan does not provide them', () => {
+      const { content } = findSpec(minimalPlanFixture);
+      expect(content).toContain('Multi-user / multi-tenant');
+      expect(content).toContain('Voice / avatar marketplace');
+      expect(content).toContain('bounded context');
+      expect(content).toContain('sidecar');
+      expect(content).toContain('Default seed — override via');
+      expect(content).toContain('_(default seed)_');
+    });
+
+    it('uses plan-supplied glossary / non-goals when present and does not prepend the seed marker', () => {
+      const { content } = findSpec({
+        ...minimalPlanFixture,
+        nonGoals: ['Cloud sync'],
+        glossary: [{ term: 'plan', definition: 'an architecture plan artefact' }],
+      });
+      expect(content).toContain('Cloud sync');
+      expect(content).not.toContain('Multi-user / multi-tenant');
+      expect(content).toContain('| **plan** | an architecture plan artefact |');
+      expect(content).not.toContain('_(default seed)_');
+    });
+  });
+
+  describe('replaceVagueAdjectives', () => {
+    it('downgrades "fast", "smooth", "intuitive", "robust", "seamless", "effortless", "natural" to [TODO: measure]', () => {
+      const out = replaceVagueAdjectives('A fast, smooth, intuitive, robust, seamless, effortless, natural UX.');
+      expect(out).toBe(
+        'A [TODO: measure], [TODO: measure], [TODO: measure], [TODO: measure], [TODO: measure], [TODO: measure], [TODO: measure] UX.',
+      );
+    });
+
+    it('leaves non-matching text intact', () => {
+      const out = replaceVagueAdjectives('A measurable UX with predictable latency.');
+      expect(out).toBe('A measurable UX with predictable latency.');
+    });
+
+    it('runs in toMarkdownFiles() post-processing so the bundle never carries vague adjectives', () => {
+      const plan: Plan = {
+        ...minimalPlanFixture,
+        boundedContexts: [
+          {
+            ...minimalPlanFixture.boundedContexts[0],
+            description: 'The runtime must feel fast and intuitive to the operator.',
+          },
+        ],
+      };
+      const files = service.toMarkdownFiles(plan);
+      const offenders = files.filter((f) => /\b(fast|intuitive|smooth|robust|seamless|effortless|natural)\b/i.test(f.content));
+      expect(offenders.length).toBe(0);
+    });
+  });
 });
+

@@ -12,6 +12,9 @@ import {
   Domain,
   DomainComponent,
   DomainEvent,
+  FunctionalRequirement,
+  KeyEntity,
+  OfflineContract,
   Plan,
   TestCase,
   TDDSpec,
@@ -19,10 +22,22 @@ import {
   Workflow,
 } from './plan.schema';
 import { branchName, featureFolder, slugify } from './feature-slug';
-import { synthesiseEdgeCases } from './edge-case-synthesiser';
+import {
+  liftEdgeCasesToFunctionalRequirements,
+  synthetiseNegativeAcceptance,
+  synthesiseEdgeCases,
+} from './edge-case-synthesiser';
 import { synthesiseConstitutionTasks } from './speckit/constitution-pack';
 import { dedupKey, pickPrimaryStory } from './speckit/task-dedup';
-import { fr010Default, stripNestedMarker } from './speckit/fr-clarification';
+import { fr010Default, resolveFr010ForSpec, stripNestedMarker } from './speckit/fr-clarification';
+import {
+  GLOSSARY_SEED,
+  MULTI_TENANT_BAN_WARNING,
+  NON_GOALS_SEED,
+  OPEN_QUESTIONS_ANCHOR,
+  SC001_DEFAULT_SCENARIO,
+  SC003_BASELINE_DEFINITION,
+} from './speckit/canonical-fr-ids';
 
 const ONBOARDING_SUBTASK_TITLES: Record<string, string> = {
   'onboarding-route': 'Onboarding route + form scaffold',
@@ -34,6 +49,31 @@ const ONBOARDING_SUBTASK_TITLES: Record<string, string> = {
 const RETRIEVAL_DESCRIPTION_LANGCHAIN = 'LangChain-based retrieval';
 const RETRIEVAL_DESCRIPTION_FALLBACK =
   'deterministic retrieval via the chosen embedding model (FR-010)';
+
+const VAGUE_ADJECTIVE_RE = /\b(fast|intuitive|smooth|robust|seamless|effortless|natural)\b/gi;
+const VAGUE_ADJECTIVE_PLACEHOLDER = '[TODO: measure]';
+
+/**
+ * Sweep prose for subjective adjectives (fast / intuitive / smooth / robust /
+ * seamless / effortless / natural) and downgrade them to a `[TODO: measure]`
+ * placeholder so spec-kit's analyser can grep for them and the user can
+ * re-prompt with measurable language. Pure renderer pass; no plan mutation.
+ */
+export function replaceVagueAdjectives(md: string): string {
+  if (!md) return md;
+  return md.replace(VAGUE_ADJECTIVE_RE, VAGUE_ADJECTIVE_PLACEHOLDER);
+}
+
+/**
+ * Spec-kit's analyser requires every rendered Markdown file to carry the
+ * `[TODO: measure]` placeholder only when the source text actually contains
+ * a vague adjective. The `replaceVagueAdjectives` helper exports the regex
+ * + placeholder so tests can verify the exact wording.
+ */
+export const VAGUE_ADJECTIVE_TEST_FIXTURE = {
+  placeholder: VAGUE_ADJECTIVE_PLACEHOLDER,
+  pattern: VAGUE_ADJECTIVE_RE.source,
+};
 
 export interface MarkdownFile {
   path: string;
@@ -85,6 +125,8 @@ export class MarkdownRendererService {
    * drift (e.g. "Minimax" → "Minimax", "Lang Chain" → "LangChain",
    * "AngularJS" → "Angular"). Runs after every builder, so nothing in the
    * rendered Markdown can carry the LLM-invented variant into the bundle.
+   * Also applies the vague-adjective sweep so spec-kit analysers can grep
+   * for `[TODO: measure]` and re-prompt the user for measurable language.
    */
   private sanitiseTerminology(md: string): string {
     if (!md) return md;
@@ -99,7 +141,7 @@ export class MarkdownRendererService {
     for (const [pattern, replacement] of substitutions) {
       out = out.replace(pattern, replacement);
     }
-    return out;
+    return replaceVagueAdjectives(out);
   }
 
   private buildConstitutionFile(plan: Plan): MarkdownFile {
@@ -186,14 +228,30 @@ export class MarkdownRendererService {
       '',
     ];
 
+    const liftedFrs = liftEdgeCasesToFunctionalRequirements(
+      plan,
+      synthesiseEdgeCases(plan),
+    );
+    const functionalRequirements: FunctionalRequirement[] = [
+      ...(plan.functionalRequirements ?? []),
+      ...liftedFrs,
+    ];
+
+    const storiesForRender = this.ensureTranscriptStory(plan);
+    const planForRender: Plan = {
+      ...plan,
+      userStories: storiesForRender,
+      functionalRequirements,
+    };
+
     lines.push('## User Scenarios & Testing', '', '');
-    if ((plan.userStories ?? []).length === 0) {
+    if ((planForRender.userStories ?? []).length === 0) {
       lines.push(
         '> No User Stories defined for this plan. Regenerate the plan to populate prioritised user stories (US001, US002, …).',
         '',
       );
     } else {
-      for (const story of plan.userStories) {
+      for (const story of planForRender.userStories) {
         lines.push(`### User Story ${story.id} — ${story.title} (Priority: ${story.priority})`, '');
         lines.push(story.description, '');
         lines.push('**Why this priority**', '');
@@ -214,38 +272,63 @@ export class MarkdownRendererService {
             `**Bounded Contexts:** ${story.boundedContextIds.map((id) => `\`${id}\``).join(', ')}`,
           );
         }
-        lines.push('');
-      }
-    }
-
-    lines.push('## Edge Cases', '');
-    const openQuestions = this.collectOpenQuestions(plan);
-    if (openQuestions.length > 0) {
-      for (const q of openQuestions) {
-        lines.push(`- ${q}`);
-      }
-      lines.push('');
-    } else {
-      const synthesised = synthesiseEdgeCases(plan);
-      if (synthesised.length === 0) {
-        lines.push(
-          '> No edge cases identified by the planner. Add explicit edge-case notes during refinement.',
-          '',
-        );
-      } else {
-        for (const s of synthesised) {
-          lines.push(`- ${s}`);
+        if (story.transcriptFormat) {
+          lines.push('');
+          lines.push(this.renderTranscriptFormat(story.transcriptFormat));
+        }
+        const negScenarios = [
+          ...(story.negativeAcceptanceScenarios ?? []),
+          ...(story.id === 'US007'
+            ? []
+            : synthetiseNegativeAcceptance(planForRender).filter((s) =>
+                s.id.startsWith(story.id),
+              )),
+        ];
+        if (negScenarios.length > 0) {
+          lines.push('');
+          lines.push('**Negative Acceptance Scenarios**', '');
+          for (let i = 0; i < negScenarios.length; i += 1) {
+            const scenario = negScenarios[i];
+            lines.push(`${i + 1}. **${scenario.id}** —`);
+            lines.push(`   - **Given** ${scenario.given}`);
+            lines.push(`   - **When** ${scenario.when}`);
+            lines.push(`   - **Then** ${scenario.then}`);
+          }
+        }
+        const xrefs = this.renderStoryCrossRefs(story, planForRender);
+        if (xrefs.length > 0) {
+          lines.push('');
+          lines.push(`**Cross-references:** ${xrefs.join(' ')}`);
         }
         lines.push('');
       }
     }
 
+    lines.push('## Edge Cases', '');
+    const synthesised = synthesiseEdgeCases(plan);
+    if (synthesised.length === 0) {
+      lines.push(
+        '> No edge cases identified by the planner. Add explicit edge-case notes during refinement.',
+        '',
+      );
+    } else {
+      for (const s of synthesised) {
+        lines.push(`- ${s}`);
+      }
+      lines.push('');
+    }
+
     lines.push('## Requirements *(mandatory)*', '');
     lines.push('### Functional Requirements', '');
-    if ((plan.functionalRequirements ?? []).length === 0) {
+    const resolvedFr010 = resolveFr010ForSpec(plan);
+    if ((planForRender.functionalRequirements ?? []).length === 0) {
       lines.push('> No functional requirements extracted for this plan yet.', '');
     } else {
-      for (const fr of plan.functionalRequirements) {
+      for (const fr of planForRender.functionalRequirements) {
+        if (fr.id === 'FR-010' && resolvedFr010) {
+          lines.push(this.renderFr010Block(fr, resolvedFr010));
+          continue;
+        }
         const safeNote = stripNestedMarker(fr.clarificationNote);
         const clarification =
           fr.needsClarification && safeNote
@@ -262,6 +345,14 @@ export class MarkdownRendererService {
       lines.push('');
     }
 
+    if ((plan.accessibilityRequirements ?? []).length > 0) {
+      lines.push('### Accessibility', '');
+      for (const fr of plan.accessibilityRequirements ?? []) {
+        lines.push(`- **${fr.id}** — ${fr.text}`);
+      }
+      lines.push('');
+    }
+
     if ((plan.nonFunctionalRequirements ?? []).length > 0) {
       lines.push('## Non-Functional Requirements *(mandatory)*', '');
       for (const nfr of plan.nonFunctionalRequirements ?? []) {
@@ -272,6 +363,15 @@ export class MarkdownRendererService {
 
     lines.push('## Key Entities', '');
     const entities: string[] = [];
+    const keyEntities: KeyEntity[] = plan.keyEntities ?? [];
+    const personality = keyEntities.find((k) => k.id === 'Personality');
+    if (personality) {
+      entities.push(this.renderKeyEntity('Personality', personality, true));
+    }
+    for (const ke of keyEntities) {
+      if (ke.id === 'Personality') continue;
+      entities.push(this.renderKeyEntity(ke.id, ke, false));
+    }
     for (const domain of plan.domains ?? []) {
       for (const agg of domain.aggregates ?? []) {
         entities.push(`- **${agg.name}** (\`${agg.id}\`, in \`${domain.id}\`) — ${agg.description}`);
@@ -283,28 +383,243 @@ export class MarkdownRendererService {
       lines.push(...entities, '');
     }
 
+    if (plan.meta.avatarBundleSpec) {
+      lines.push('### Avatar Bundle Schema', '');
+      const spec = plan.meta.avatarBundleSpec;
+      lines.push(`- **Manifest version:** \`${spec.manifestVersion}\``);
+      if (spec.manifestKeys.length > 0) {
+        lines.push(`- **Manifest keys:** ${spec.manifestKeys.map((k) => `\`${k}\``).join(', ')}`);
+      }
+      if (spec.importValidatorRef) {
+        lines.push(`- **Import validator ref:** \`${spec.importValidatorRef}\``);
+      }
+      lines.push('');
+    }
+
+    lines.push('## Offline Behaviour', '');
+    const offlineBlock = this.buildOfflineBehaviourBlock(plan);
+    lines.push(...offlineBlock);
+
     lines.push('## Success Criteria *(mandatory)*', '');
     lines.push('### Measurable Outcomes', '');
     if ((plan.successCriteria ?? []).length === 0) {
       lines.push('> No success criteria defined yet.', '');
     } else {
-      for (const sc of plan.successCriteria) {
-        lines.push(`- **${sc.id}** — ${sc.text}`);
+      const rows = plan.successCriteria.map((sc) => ({
+        id: sc.id,
+        text: sc.text,
+        scenario: this.resolveMeasurementScenario(sc),
+      }));
+      const hasScenario = rows.some((r) => r.scenario);
+      if (hasScenario) {
+        lines.push('| ID | Outcome | Measurement Scenario |');
+        lines.push('|---|---|---|');
+        for (const row of rows) {
+          lines.push(`| **${row.id}** | ${row.text} | ${row.scenario ?? '—'} |`);
+        }
+        lines.push('');
+      } else {
+        for (const sc of plan.successCriteria) {
+          lines.push(`- **${sc.id}** — ${sc.text}`);
+        }
+        lines.push('');
       }
-      lines.push('');
     }
 
-    lines.push('## Assumptions', '');
-    if ((plan.systemOverview.constraints ?? []).length === 0) {
-      lines.push('> No explicit constraints captured. Add constraints in the planner to surface assumptions here.', '');
-    } else {
+    lines.push('## Preconditions & Constraints', '');
+    lines.push(
+      '> Operational preconditions and single-tenant constraints. See also `systemOverview.constraints[]`.',
+      '',
+    );
+    if ((plan.systemOverview.constraints ?? []).length > 0) {
       for (const c of plan.systemOverview.constraints) {
         lines.push(`- ${c}`);
       }
       lines.push('');
     }
+    const operational = plan.meta.operationalConstraints;
+    if (operational) {
+      const sidecarBindWarn = /0\.0\.0\.0/.test(operational.sidecarBind);
+      const sidecarLine = sidecarBindWarn
+        ? `- **Sidecar bind:** \`${operational.sidecarBind}\` — ${MULTI_TENANT_BAN_WARNING}`
+        : `- **Sidecar bind:** \`${operational.sidecarBind}\``;
+      lines.push('**Operational Constraints:**', '');
+      lines.push(sidecarLine);
+      lines.push(`- **Auth:** \`${operational.auth}\``);
+      lines.push(`- **Multi-tenant ban:** ${operational.multiTenantBan}`);
+      lines.push('');
+    }
+
+    lines.push('## Non-Goals', '');
+    const nonGoals: ReadonlyArray<string> = (plan.nonGoals ?? []).length > 0 ? plan.nonGoals ?? [] : NON_GOALS_SEED;
+    const nonGoalsAreSeed = (plan.nonGoals ?? []).length === 0;
+    for (const ng of nonGoals) {
+      const prefix = nonGoalsAreSeed ? `${VAGUE_ADJECTIVE_PLACEHOLDER} — default` : '';
+      lines.push(`- ${prefix}${prefix ? ' ' : ''}${ng}`.trim());
+    }
+    if (nonGoalsAreSeed) {
+      lines.push('', '> Default seed — override via `plan.nonGoals[]`.', '');
+    }
+
+    const openQuestions = this.collectOpenQuestions(plan);
+    if (openQuestions.length > 0) {
+      lines.push('', '## Open Questions', '');
+      lines.push(OPEN_QUESTIONS_ANCHOR, '');
+      for (const q of openQuestions) {
+        lines.push(`- ${q}`);
+      }
+      lines.push('');
+    }
+
+    lines.push('## Glossary', '');
+    const glossaryEntries: ReadonlyArray<{ term: string; definition: string }> =
+      (plan.glossary ?? []).length > 0 ? plan.glossary ?? [] : GLOSSARY_SEED;
+    const glossaryIsSeed = (plan.glossary ?? []).length === 0;
+    lines.push('| Term | Definition |', '|---|---|');
+    for (const entry of glossaryEntries) {
+      lines.push(`| **${entry.term}** | ${entry.definition}${glossaryIsSeed ? ' _(default seed)_' : ''} |`);
+    }
+    lines.push('');
 
     return lines.join('\n');
+  }
+
+  /**
+   * When no user story has `id === 'US007'` we append a generated story for
+   * the transcript export surface. Defaults are sourced from
+   * `plan.meta.transcriptSchema` (or `transcriptFormat` on an existing story).
+   */
+  private ensureTranscriptStory(plan: Plan): UserStory[] {
+    const stories = plan.userStories ?? [];
+    if (stories.some((s) => s.id === 'US007')) return stories;
+    const ts = plan.meta.transcriptSchema ?? { primary: 'json', secondary: 'markdown' };
+    const synthetic: UserStory = {
+      id: 'US007',
+      title: 'Transcript export',
+      priority: 'P2',
+      description: 'Operators can export the transcript of a session for review and archival.',
+      whyThisPriority:
+        'Required for compliance review and for the Spec Verifier cross-check loop.',
+      independentTest:
+        'Generate a transcript artefact from the spec editor and verify it round-trips through the JSON Schema validator.',
+      acceptanceScenarios: [
+        {
+          id: 'SC-007a',
+          given: 'a completed session is recorded in the conversation-memory service',
+          when: 'an operator requests a transcript export',
+          then: `an artefact with \`primary=${ts.primary}\` and \`secondary=${ts.secondary ?? 'n/a'}\` is produced and signed`,
+        },
+      ],
+      boundedContextIds: [],
+      transcriptFormat: {
+        primary: ts.primary,
+        secondary: ts.secondary,
+        schemaRef: ts.schemaRef,
+      },
+    };
+    return [...stories, synthetic];
+  }
+
+  private renderTranscriptFormat(format: { primary: string; secondary?: string; schemaRef?: string }): string {
+    const parts = [`primary: \`${format.primary}\``];
+    if (format.secondary) parts.push(`secondary: \`${format.secondary}\``);
+    if (format.schemaRef) parts.push(`schema: \`${format.schemaRef}\``);
+    return `**Transcript format:** ${parts.join(', ')}`;
+  }
+
+  private renderStoryCrossRefs(story: UserStory, plan: Plan): string[] {
+    const refs: string[] = [];
+    const haystack = `${story.title} ${story.description} ${story.whyThisPriority} ${story.independentTest} ${story.acceptanceScenarios.map((s) => `${s.id} ${s.given} ${s.when} ${s.then}`).join(' ')}`;
+    const frs = Array.from(new Set(Array.from(haystack.matchAll(/FR-[A-Za-z0-9-]+/g)).map((m) => m[0])))
+      .filter((id) => (plan.functionalRequirements ?? []).some((fr) => fr.id === id) || id.startsWith('FR-'));
+    const scs = Array.from(new Set(Array.from(haystack.matchAll(/SC-\d+/g)).map((m) => m[0])))
+      .filter((id) => (plan.successCriteria ?? []).some((sc) => sc.id === id));
+    for (const id of frs) refs.push(`↔ ${id}`);
+    for (const id of scs) refs.push(`↔ ${id}`);
+    return refs;
+  }
+
+  private renderFr010Block(fr: FunctionalRequirement, resolved: { text: string; latencyTargetMs: number; note: string; embeddingVersioning: { schemaMigration: string; sampleBackfill: string } }): string {
+    const lines: string[] = [
+      `- **${fr.id}** (resolved at generation time) — ${resolved.text}`,
+      '',
+      '  > **Embedding Versioning**',
+      `  > - Schema migration: ${resolved.embeddingVersioning.schemaMigration}`,
+      `  > - Sample backfill: ${resolved.embeddingVersioning.sampleBackfill}`,
+      `  > - Latency budget: ${resolved.latencyTargetMs}ms p95 (profile \`deterministic-embedding\`).`,
+      `  > - Note: ${resolved.note}`,
+      '',
+    ];
+    return lines.join('\n');
+  }
+
+  private renderKeyEntity(id: string, entity: KeyEntity, isFirstClass: boolean): string {
+    const label = isFirstClass ? '**Personality** _(first-class)_' : `**${entity.name}**`;
+    const lines: string[] = [`- ${label} (\`${id}\`) — ${entity.description}`];
+    if (entity.fields.length > 0) {
+      lines.push('  - Fields:');
+      for (const field of entity.fields) {
+        const rules = field.rules.length > 0 ? ` _(rules: ${field.rules.join('; ')})_` : '';
+        lines.push(`    - \`${field.name}\`: ${field.type}${rules}`);
+      }
+    }
+    if (entity.invariants.length > 0) {
+      lines.push('  - Invariants:');
+      for (const inv of entity.invariants) {
+        lines.push(`    - ${inv}`);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  private buildOfflineBehaviourBlock(plan: Plan): string[] {
+    const out: string[] = [];
+    const contract: OfflineContract | undefined = plan.offlineContract;
+    if (!contract) {
+      if (plan.meta.localFirst) {
+        out.push(
+          '> ⚠️ [OFFLINE CONTRACT PENDING — regenerate to populate this section]',
+          '',
+        );
+        return out;
+      }
+      out.push(
+        '> No offline contract declared. `local-first` is not set on this plan; add `plan.offlineContract` to surface the per-capability degradation matrix below.',
+        '',
+      );
+      return out;
+    }
+    out.push('**Per-capability degradation matrix:**', '');
+    out.push('| Capability | Mode | Reason |', '|---|---|---|');
+    for (const row of contract.degrade) {
+      out.push(`| \`${row.capability}\` | \`${row.mode}\` | ${row.reason} |`);
+    }
+    out.push('');
+    if (contract.cacheableAssets.length > 0) {
+      out.push('**Cacheable assets:**', '');
+      for (const asset of contract.cacheableAssets) {
+        out.push(`- ${asset}`);
+      }
+      out.push('');
+    }
+    out.push(`**UI indicator:** ${contract.uiIndicator}`, '');
+    if (contract.replayOnReconnect.length > 0) {
+      out.push('**Replay-on-reconnect queue:**', '');
+      for (const item of contract.replayOnReconnect) {
+        out.push(`- ${item}`);
+      }
+      out.push('');
+    }
+    return out;
+  }
+
+  private resolveMeasurementScenario(sc: { id: string; measurementScenario?: string }): string | undefined {
+    if (sc.measurementScenario && sc.measurementScenario.trim().length > 0) {
+      return sc.measurementScenario;
+    }
+    if (sc.id === 'SC-001') return SC001_DEFAULT_SCENARIO;
+    if (sc.id === 'SC-003') return SC003_BASELINE_DEFINITION;
+    return undefined;
   }
 
   private collectOpenQuestions(plan: Plan): string[] {

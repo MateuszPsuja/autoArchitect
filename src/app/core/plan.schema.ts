@@ -74,7 +74,7 @@ const CONSTITUTION_ARTICLES_MAX = 9;
 
 export const PRIORITY_PATTERN = /^P[123]$/;
 export const USER_STORY_ID_PATTERN = /^US\d{3,}$/;
-export const FR_ID_PATTERN = /^FR-\d{3,}$/;
+export const FR_ID_PATTERN = /^FR-[A-Za-z0-9-]{3,}$/;
 export const SC_ID_PATTERN = /^SC-\d{3,}$/;
 export const NFR_ID_PATTERN = /^NFR-\d{3,}$/;
 export const ACCEPTANCE_SCENARIO_ID_PATTERN = /^(FR|SC|AS)-\d{3,}$/;
@@ -114,6 +114,19 @@ const AcceptanceScenarioSchema = z.object({
   then: z.string().min(1),
 });
 
+const NegativeAcceptanceScenarioSchema = z.object({
+  id: z.string().regex(/^US\d{3,}-NEG-\d{3,}$/, 'Use USNNN-NEG-NNN'),
+  given: z.string().min(1),
+  when: z.string().min(1),
+  then: z.string().min(1),
+});
+
+const TranscriptFormatSchema = z.object({
+  primary: z.string().min(1).default('json'),
+  secondary: z.string().min(1).optional(),
+  schemaRef: z.string().min(1).optional(),
+});
+
 const FunctionalRequirementSchema = z.object({
   id: z.string().regex(FR_ID_PATTERN),
   text: z.string().min(1),
@@ -128,6 +141,7 @@ const SuccessCriterionSchema = z.object({
   text: z.string().min(1),
   kind: z.enum(SC_KINDS).default('boolean').optional(),
   latencyTargetMs: z.number().int().positive().optional(),
+  measurementScenario: z.string().min(1).optional(),
 });
 
 const UserStorySchema = z.object({
@@ -140,6 +154,8 @@ const UserStorySchema = z.object({
   acceptanceScenarios: z.array(AcceptanceScenarioSchema).min(1).transform((arr) => capArray(arr, ACCEPTANCE_SCENARIOS_MAX)),
   boundedContextIds: z.array(z.string().min(1)).default([]),
   onboarding: z.boolean().default(false).optional(),
+  transcriptFormat: TranscriptFormatSchema.optional(),
+  negativeAcceptanceScenarios: z.array(NegativeAcceptanceScenarioSchema).default([]).optional(),
 });
 
 const ConstitutionArticleSchema = z.object({
@@ -164,6 +180,65 @@ export const ConstitutionSchema = z.object({
   lastAmendedAt: z.string().min(1),
   articles: z.array(ConstitutionArticleSchema).length(CONSTITUTION_ARTICLES_MAX),
 });
+
+const KeyEntityFieldSchema = z.object({
+  name: z.string().min(1),
+  type: z.string().min(1),
+  rules: z.array(z.string().min(1)).default([]),
+});
+
+export const KeyEntitySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().min(1),
+  fields: z.array(KeyEntityFieldSchema).default([]),
+  invariants: z.array(z.string().min(1)).default([]),
+});
+export type KeyEntity = z.infer<typeof KeyEntitySchema>;
+
+export const OfflineDegradeCapabilitySchema = z.enum(['llm', 'stt', 'tts', 'image']);
+export const OfflineDegradeModeSchema = z.enum(['queue', 'cached', 'hard-fail']);
+
+export const OfflineContractSchema = z.object({
+  cacheableAssets: z.array(z.string().min(1)).default([]),
+  degrade: z.array(
+    z.object({
+      capability: OfflineDegradeCapabilitySchema,
+      mode: OfflineDegradeModeSchema,
+      reason: z.string().min(1),
+    }),
+  ).default([]),
+  uiIndicator: z.string().min(1).default('A persistent banner shows the offline state.'),
+  replayOnReconnect: z.array(z.string().min(1)).default([]),
+});
+export type OfflineContract = z.infer<typeof OfflineContractSchema>;
+
+export const AvatarBundleSpecSchema = z.object({
+  manifestVersion: z.string().min(1),
+  manifestKeys: z.array(z.string().min(1)).default([]),
+  importValidatorRef: z.string().min(1).optional(),
+});
+export type AvatarBundleSpec = z.infer<typeof AvatarBundleSpecSchema>;
+
+export const OperationalConstraintsSchema = z.object({
+  sidecarBind: z.string().min(1).default('127.0.0.1'),
+  auth: z.string().min(1).default('none'),
+  multiTenantBan: z.string().min(1).default('enforced at sidecar listen address'),
+});
+export type OperationalConstraints = z.infer<typeof OperationalConstraintsSchema>;
+
+export const TranscriptSchemaSchema = z.object({
+  primary: z.string().min(1).default('json'),
+  secondary: z.string().min(1).optional(),
+  schemaRef: z.string().min(1).optional(),
+});
+export type TranscriptSchema = z.infer<typeof TranscriptSchemaSchema>;
+
+export const GlossaryEntrySchema = z.object({
+  term: z.string().min(1),
+  definition: z.string().min(1),
+});
+export type GlossaryEntry = z.infer<typeof GlossaryEntrySchema>;
 
 const AggregateSchema = z.object({
   id: z.string().min(1),
@@ -386,6 +461,10 @@ export const PlanSchema = z.object({
     technologyHints: z.string().optional(),
     tokenStats: TokenUsageSchema.nullable().optional(),
     userIdea: z.string().min(1).optional(),
+    localFirst: z.boolean().optional(),
+    avatarBundleSpec: AvatarBundleSpecSchema.optional(),
+    operationalConstraints: OperationalConstraintsSchema.optional(),
+    transcriptSchema: TranscriptSchemaSchema.optional(),
   }),
   systemOverview: z.object({
     purpose: z.string().min(1),
@@ -427,6 +506,14 @@ export const PlanSchema = z.object({
     )
     .default([])
     .optional(),
+  keyEntities: z.array(KeyEntitySchema).default([]).optional(),
+  accessibilityRequirements: z
+    .array(FunctionalRequirementSchema)
+    .default([])
+    .optional(),
+  offlineContract: OfflineContractSchema.optional(),
+  glossary: z.array(GlossaryEntrySchema).default([]).optional(),
+  nonGoals: z.array(z.string().min(1)).default([]).optional(),
 });
 
 export const LayerChunkSchema = z.union([
@@ -515,4 +602,6 @@ export type NonFunctionalRequirement = {
   text: string;
   category: NfrCategory;
 };
+export type NegativeAcceptanceScenario = z.infer<typeof NegativeAcceptanceScenarioSchema>;
+export type TranscriptFormat = z.infer<typeof TranscriptFormatSchema>;
 type ComplexityEntry = z.infer<typeof ComplexityEntrySchema>;

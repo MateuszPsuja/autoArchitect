@@ -718,6 +718,8 @@ d) "userStories" — REQUIRED. Array of 3–8 User Story objects that drive the 
 
 e) "functionalRequirements" — array of 4–12 FR objects, each { id (matching FR-NNN), text (clear, testable requirement), needsClarification (boolean, default false), clarificationNote (optional) }. Whenever information is genuinely missing, set needsClarification: true and embed a NEEDS CLARIFICATION note in the clarificationNote — do NOT guess. Leave the array empty if and only if the plan has no functional surface.
 
+   - **FR-002 (emotion source)**: When the plan involves an assistant turn (LLM, voice, or chat), the FR-002 \`text\` MUST include the substring \`structured-output field emotion on every assistant turn\` and pin the schema as the triple (valence, arousal, label) with \`null\` as the fallback when unavailable. Do NOT mark FR-002 as \`needsClarification\` — the renderer resolves it.
+
 f) "successCriteria" — array of 3–6 SC objects, each { id (matching SC-NNN), text (a measurable, technology-agnostic outcome, e.g. "p95 home feed render under 1.5s on a warm cache") }.
 
 g) "constitution" — REQUIRED. The project constitution as an object: { projectName (use the plan title), version (start at "1.0.0"), ratifiedAt (ISO timestamp), lastAmendedAt (ISO timestamp, same as ratifiedAt on first generation), articles: [EXACTLY 9 entries] }. Articles MUST be in this order with these titles (case-insensitive):
@@ -755,7 +757,7 @@ For every entry you emit, ensure downstream coverage:
 - Every "successCriterion" (SC-NNN) MUST have at least 1 "agentTasks" entry whose description names the SC id and ends with "(SC-NNN measurement harness)".
 - Every "boundedContext" MUST appear in at least one story's "boundedContextIds".
 
-Hard rule: do NOT use NEEDS CLARIFICATION for items you can answer from the user's prompt. Reserve it only for information the user has not provided. Common offenders — voice-clone (FR-008), embedding model + dimension (FR-009), default values, env names. If you find yourself writing needsClarification: true, first re-read the user's idea for the answer.
+Hard rule: do NOT use NEEDS CLARIFICATION for items you can answer from the user's prompt. Reserve it only for information the user has not provided. Common offenders — voice-clone (FR-008), embedding model + dimension (FR-010), default values, env names. If you find yourself writing needsClarification: true, first re-read the user's idea for the answer.
 
 ━━━ SUCCESS CRITERIA WORDING ━━━
 

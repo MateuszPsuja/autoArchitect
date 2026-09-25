@@ -1,4 +1,9 @@
-import { synthesiseEdgeCases } from './edge-case-synthesiser';
+import {
+  CANONICAL_LIFTED_FR_IDS,
+  liftEdgeCasesToFunctionalRequirements,
+  synthetiseNegativeAcceptance,
+  synthesiseEdgeCases,
+} from './edge-case-synthesiser';
 import { Plan } from './plan.schema';
 
 describe('synthesiseEdgeCases()', () => {
@@ -177,5 +182,168 @@ describe('synthesiseEdgeCases()', () => {
     const bullets = synthesiseEdgeCases(plan);
     const matches = bullets.filter((b) => /p95 latency/i.test(b));
     expect(matches.length).toBe(1);
+  });
+
+  describe('liftEdgeCasesToFunctionalRequirements', () => {
+    it('returns no FRs when no trigger phrase matches', () => {
+      const plan = {
+        meta: {
+          title: 'x',
+          summary: 'y',
+          generatedAt: '2026-01-01T00:00:00.000Z',
+          model: 'test',
+          featureNumber: 1,
+          featureSlug: 'x',
+        },
+        systemOverview: {
+          purpose: 'p',
+          context: 'c',
+          keyActors: [],
+          constraints: [],
+          nfrs: [],
+          c4: { contextDiagram: 'A', containerDiagram: 'A' },
+        },
+        boundedContexts: [],
+        architectureLayers: [],
+        domains: [],
+        functionalRequirements: [],
+      } as unknown as Plan;
+
+      expect(liftEdgeCasesToFunctionalRequirements(plan, [])).toEqual([]);
+    });
+
+    it('emits all six canonical FRs when every trigger phrase is present', () => {
+      const plan = {
+        meta: {
+          title: 'no secrets no codegen strict TS strict python framework-free read-only',
+          summary: '',
+          generatedAt: '2026-01-01T00:00:00.000Z',
+          model: 'test',
+          featureNumber: 1,
+          featureSlug: 'x',
+        },
+        systemOverview: {
+          purpose: 'p',
+          context: 'no secrets, mypy --strict, codegen:check',
+          keyActors: [],
+          constraints: [
+            'Domain has no framework imports',
+            'Generated bindings are read-only',
+          ],
+          nfrs: ['Strict TypeScript, no any'],
+          c4: { contextDiagram: 'A', containerDiagram: 'A' },
+        },
+        boundedContexts: [],
+        architectureLayers: [],
+        domains: [],
+        functionalRequirements: [],
+      } as unknown as Plan;
+
+      const lifted = liftEdgeCasesToFunctionalRequirements(plan, []);
+      const ids = lifted.map((fr) => fr.id).sort();
+      expect(ids).toEqual([...CANONICAL_LIFTED_FR_IDS].sort());
+    });
+
+    it('never duplicates an existing FR id already present on the plan', () => {
+      const plan = {
+        meta: {
+          title: 'no secrets strict TS',
+          summary: '',
+          generatedAt: '2026-01-01T00:00:00.000Z',
+          model: 'test',
+          featureNumber: 1,
+          featureSlug: 'x',
+        },
+        systemOverview: {
+          purpose: 'p',
+          context: 'c',
+          keyActors: [],
+          constraints: [],
+          nfrs: ['Strict TypeScript, no any'],
+          c4: { contextDiagram: 'A', containerDiagram: 'A' },
+        },
+        boundedContexts: [],
+        architectureLayers: [],
+        domains: [],
+        functionalRequirements: [
+          { id: 'FR-TS-001', text: 'existing', needsClarification: false },
+        ],
+      } as unknown as Plan;
+
+      const lifted = liftEdgeCasesToFunctionalRequirements(plan, []);
+      const ids = lifted.map((fr) => fr.id);
+      expect(ids).not.toContain('FR-TS-001');
+      expect(ids).toContain('FR-SEC-001');
+    });
+  });
+
+  describe('synthetiseNegativeAcceptance', () => {
+    it('emits at least the cross-context memory-isolation rule', () => {
+      const plan = {
+        meta: {
+          title: 'x',
+          summary: 'y',
+          generatedAt: '2026-01-01T00:00:00.000Z',
+          model: 'test',
+          featureNumber: 1,
+          featureSlug: 'x',
+        },
+        systemOverview: {
+          purpose: 'p',
+          context: 'c',
+          keyActors: [],
+          constraints: [],
+          nfrs: [],
+          c4: { contextDiagram: 'A', containerDiagram: 'A' },
+        },
+        boundedContexts: [],
+        architectureLayers: [],
+        domains: [],
+        userStories: [],
+      } as unknown as Plan;
+
+      const out = synthetiseNegativeAcceptance(plan);
+      expect(out.length).toBeGreaterThan(0);
+      expect(out.some((s) => /memory/i.test(s.given))).toBe(true);
+    });
+
+    it('produces a USNNN-NEG-001 scenario when a memory story exists', () => {
+      const plan = {
+        meta: {
+          title: 'x',
+          summary: 'y',
+          generatedAt: '2026-01-01T00:00:00.000Z',
+          model: 'test',
+          featureNumber: 1,
+          featureSlug: 'x',
+        },
+        systemOverview: {
+          purpose: 'p',
+          context: 'c',
+          keyActors: [],
+          constraints: [],
+          nfrs: [],
+          c4: { contextDiagram: 'A', containerDiagram: 'A' },
+        },
+        boundedContexts: [],
+        architectureLayers: [],
+        domains: [],
+        userStories: [
+          {
+            id: 'US042',
+            title: 'Conversation memory across sessions',
+            priority: 'P1',
+            description: 'A story about memory.',
+            whyThisPriority: 'x',
+            independentTest: 'x',
+            acceptanceScenarios: [],
+            boundedContextIds: [],
+          },
+        ],
+      } as unknown as Plan;
+
+      const out = synthetiseNegativeAcceptance(plan);
+      expect(out.some((s) => s.id === 'US042-NEG-001')).toBe(true);
+    });
   });
 });
