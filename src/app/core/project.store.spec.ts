@@ -1082,6 +1082,14 @@ describe('ProjectStore', () => {
       expect(store.hasUserChanges()).toBe(true);
     });
 
+    it('clearAllRefinementChats keeps plan === lastGeneratedPlanRef (memory regenerate.green_after_regenerate)', () => {
+      const store = TestBed.inject(ProjectStore);
+      store.setPlan(MICROBLOG_DEMO_PLAN, null);
+      store.clearAllRefinementChats();
+      expect(store.plan()).toBe(store.lastGeneratedPlanRef());
+      expect(store.hasUserChanges()).toBe(false);
+    });
+
     it('resets regenerate state after completeRegenerate (but markdown overrides remain)', () => {
       const store = TestBed.inject(ProjectStore);
       store.setPlan(MICROBLOG_DEMO_PLAN, null);

@@ -862,8 +862,10 @@ export const ProjectStore = signalStore(
     clearAllRefinementChats(): void {
       const plan = store.plan();
       if (!plan) return;
+      const nextPlan = { ...plan, refinementChats: [] };
       patchState(store, {
-        plan: { ...plan, refinementChats: [] },
+        plan: nextPlan,
+        lastGeneratedPlanRef: nextPlan,
         refinementChat: createInitialRefinementChatState(),
       });
       persistToLocalStorage(store);
