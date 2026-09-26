@@ -1,8 +1,8 @@
 import { Plan } from '../../plan.schema';
 import { Finding, MarkdownFile } from './remediator.types';
 
-const GHOST_MARKER_RE = /\((?:ref\s+US\d+|(?:ghost|pack))\)/i;
-const SYNTH_MARKER_RE = /\(synth\)/i;
+const GHOST_MARKER_RE = /\((?:ref\s+US\d+|(?:ghost|pack))\)/gi;
+const SYNTH_MARKER_RE = /\(synth\)/gi;
 const FORBIDDEN_DESC_TOKEN_RE = /<|>| \?{3} |regenerate to populate/gi;
 const USER_STORY_PHASE_RE = /^## User Story (US\d+)\b/m;
 const TASK_LINE_RE = /^- \[ \]/;

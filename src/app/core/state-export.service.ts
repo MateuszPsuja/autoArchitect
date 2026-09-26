@@ -186,8 +186,12 @@ export class StateExportService {
     const anchor = document.createElement('a');
     anchor.href = URL.createObjectURL(blob);
     anchor.download = `auto-architect-state-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(anchor.href);
+    document.body.removeChild(anchor);
+    // Defer the revoke so Safari/Firefox have a chance to read the blob.
+    setTimeout(() => URL.revokeObjectURL(anchor.href), 0);
   }
 
   importFromFile(file: File, options: { includeKeys?: boolean } = {}): Promise<StateSnapshot> {
