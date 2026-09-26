@@ -1049,6 +1049,10 @@ export const ProjectStore = signalStore(
           isRegenerating: false,
           lastOriginalInput: refreshed.lastOriginalInput ?? null,
           lastSavedPlanRef: refreshed.plan,
+          markdownOverrides:
+            store.plan() === refreshed.plan
+              ? store.markdownOverrides()
+              : {},
         });
         persistToLocalStorage(store);
         return;
@@ -1062,6 +1066,10 @@ export const ProjectStore = signalStore(
         isRegenerating: false,
         lastOriginalInput: entry.lastOriginalInput ?? null,
         lastSavedPlanRef: entry.plan,
+        markdownOverrides:
+          store.plan() === entry.plan
+            ? store.markdownOverrides()
+            : {},
       });
       persistToLocalStorage(store);
     },

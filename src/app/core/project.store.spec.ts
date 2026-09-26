@@ -513,6 +513,24 @@ describe('ProjectStore', () => {
     expect(active.meta.generatedAt).toBe(MICROBLOG_DEMO_PLAN.meta.generatedAt);
   });
 
+  it('replacePlanForUserEdit preserves user-edited Original Idea instead of reverting to the cached demo plan (memory refreshStaleDemoPlan.preserve_user_edits)', () => {
+    TestBed.resetTestingModule();
+    const store = TestBed.inject(ProjectStore);
+    store.setPlan(MICROBLOG_DEMO_PLAN, null);
+    vi.advanceTimersByTime(250);
+    expect(store.hasUserChanges()).toBe(false);
+
+    const edited: Plan = {
+      ...store.plan()!,
+      meta: { ...store.plan()!.meta, userIdea: 'A real-time microblogging platform for live events' },
+    };
+    store.replacePlanForUserEdit(edited);
+
+    expect(store.plan()?.meta.userIdea).toBe('A real-time microblogging platform for live events');
+    expect(store.plan()).not.toBe(MICROBLOG_DEMO_PLAN);
+    expect(store.hasUserChanges()).toBe(true);
+  });
+
   it('setPdfTokenStats updates the signal and hasPdfTokenStats flips, but is not persisted', () => {
     TestBed.resetTestingModule();
     const store = TestBed.inject(ProjectStore);
@@ -1153,6 +1171,90 @@ describe('ProjectStore', () => {
       store.loadSavedPlan('restore-input');
       expect(store.lastOriginalInput()).toEqual(originalInput);
       expect(store.lastGeneratedPlanRef()).toBe(store.plan());
+    });
+
+    it('loadSavedPlan clears stale markdownOverrides from a previous plan so hasUserChanges stays false (memory regenerate.green_no_changes)', () => {
+      const store = TestBed.inject(ProjectStore) as unknown as {
+        upsertMarkdownOverride: (path: string, content: string) => void;
+        markdownOverrides: () => Record<string, string>;
+        hasUserChanges: () => boolean;
+        savePlan: (entry: {
+          id: string;
+          title: string;
+          savedAt: string;
+          model: string;
+          tokenStats: null;
+          plan: Plan;
+          lastOriginalInput: null;
+        }) => void;
+        loadSavedPlan: (id: string) => void;
+        plan: () => Plan | null;
+      };
+      // Save a first plan with a markdown override in place.
+      const firstPlan: Plan = JSON.parse(JSON.stringify(MICROBLOG_DEMO_PLAN));
+      firstPlan.meta.title = 'First plan';
+      store.upsertMarkdownOverride('docs/01-product/product-vision.md', 'edited body');
+      store.savePlan({
+        id: 'plan-a',
+        title: 'First plan',
+        savedAt: '2026-09-01T00:00:00.000Z',
+        model: 'test-model',
+        tokenStats: null,
+        plan: firstPlan,
+        lastOriginalInput: null,
+      });
+      // Switch to a different saved plan — overrides from plan A must NOT survive.
+      const secondPlan: Plan = JSON.parse(JSON.stringify(MICROBLOG_DEMO_PLAN));
+      secondPlan.meta.title = 'Second plan';
+      store.savePlan({
+        id: 'plan-b',
+        title: 'Second plan',
+        savedAt: '2026-09-02T00:00:00.000Z',
+        model: 'test-model',
+        tokenStats: null,
+        plan: secondPlan,
+        lastOriginalInput: null,
+      });
+      store.loadSavedPlan('plan-b');
+      expect(store.markdownOverrides()).toEqual({});
+      expect(store.hasUserChanges()).toBe(false);
+    });
+
+    it('loadSavedPlan preserves markdownOverrides when reloading the same plan', () => {
+      const store = TestBed.inject(ProjectStore) as unknown as {
+        upsertMarkdownOverride: (path: string, content: string) => void;
+        markdownOverrides: () => Record<string, string>;
+        savePlan: (entry: {
+          id: string;
+          title: string;
+          savedAt: string;
+          model: string;
+          tokenStats: null;
+          plan: Plan;
+          lastOriginalInput: null;
+        }) => void;
+        loadSavedPlan: (id: string) => void;
+      };
+      const plan: Plan = JSON.parse(JSON.stringify(MICROBLOG_DEMO_PLAN));
+      plan.meta.title = 'Same plan';
+      store.savePlan({
+        id: 'same',
+        title: 'Same plan',
+        savedAt: '2026-09-03T00:00:00.000Z',
+        model: 'test-model',
+        tokenStats: null,
+        plan,
+        lastOriginalInput: null,
+      });
+      store.loadSavedPlan('same');
+      store.upsertMarkdownOverride('docs/01-product/product-vision.md', 'edited body');
+      store.upsertMarkdownOverride('docs/02-architecture/frontend-architecture.md', 'second edit');
+      // Reload the SAME plan — overrides must survive.
+      store.loadSavedPlan('same');
+      expect(Object.keys(store.markdownOverrides()).sort()).toEqual([
+        'docs/01-product/product-vision.md',
+        'docs/02-architecture/frontend-architecture.md',
+      ]);
     });
 
     it('clearRegenerateError clears the error', () => {

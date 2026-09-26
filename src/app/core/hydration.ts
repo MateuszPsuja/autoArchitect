@@ -300,6 +300,11 @@ export function refreshStaleDemoPlan(plan: Plan): Plan {
   const demoPlan = getDemoPlan();
   if (!demoPlan) return plan;
   if (plan.meta?.title !== demoPlan.meta.title) return plan;
+  // Never overwrite a plan the user has edited (e.g. Original Idea) with the
+  // cached demo reference — doing so collapses `plan === lastGeneratedPlanRef`
+  // and flips `hasUserChanges` back to false, greying out Regenerate.
+  // (memory refreshStaleDemoPlan.preserve_user_edits)
+  if (plan.meta?.userIdea && plan.meta.userIdea.trim().length > 0) return plan;
   return demoPlan;
 }
 

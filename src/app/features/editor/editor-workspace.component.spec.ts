@@ -339,7 +339,29 @@ describe('EditorWorkspaceComponent', () => {
     expect(lastCall?.[0]?.hints).toBe('team prefers TypeORM');
   });
 
-  it('navigates to /planner to surface live stats, then back to /editor after a successful regenerate', async () => {
+  it('startRegenerate flushes the focused element first so a typed-but-not-blurred Plan Fields edit counts (memory regenerate.idea_change_not_picked_up)', async () => {
+    const plan = minimalPlanFixture;
+    const { fixture } = setup(plan, true);
+    fixture.detectChanges();
+
+    // Simulate a focused Plan Fields textarea with a pending edit.
+    const fakeInput = document.createElement('textarea');
+    fakeInput.value = 'pending edit that was never blurred';
+    document.body.appendChild(fakeInput);
+    fakeInput.focus();
+    expect(document.activeElement).toBe(fakeInput);
+
+    const component = fixture.componentInstance as unknown as {
+      startRegenerate: () => Promise<void>;
+    };
+    await component.startRegenerate();
+
+    expect(document.activeElement).not.toBe(fakeInput);
+    expect(fakeInput.parentNode).toBe(document.body);
+    fakeInput.remove();
+  });
+
+  it('navigates to /planner to surface live stats, then back to /editor after a successful regenerate (memory regenerate.navigate_to_planner)', async () => {
     const plan = minimalPlanFixture;
     const { fixture, store, overridesSig, lastSavedPlanRefSig } = setup(plan, true, {}, [
       {
@@ -395,12 +417,14 @@ describe('EditorWorkspaceComponent', () => {
     inner!.click();
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     subscription.unsubscribe();
 
     expect(visitedUrls).toContain('/planner');
     expect(router.url).toBe('/editor');
     expect(store.isGenerating()).toBe(false);
+    expect(store.setPlan).toHaveBeenCalled();
   });
 
   it('surfaces the regenerate error and preserves the refinement chat when regeneration produces no usable output', async () => {
@@ -452,6 +476,7 @@ describe('EditorWorkspaceComponent', () => {
     (regenButton!.querySelector('button') as HTMLButtonElement).click();
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(store.setPlan).not.toHaveBeenCalled();
     expect(store.clearAllRefinementChats).not.toHaveBeenCalled();
@@ -485,6 +510,90 @@ describe('EditorWorkspaceComponent', () => {
     await fixture.whenStable();
 
     expect(store.clearDiagramAudit).toHaveBeenCalled();
+  });
+
+  it('surfaces a visible error on the editor when Regenerate is clicked with no model selected (memory regenerate.click_no_model)', async () => {
+    const plan = minimalPlanFixture;
+    const { fixture, store, overridesSig, lastSavedPlanRefSig } = setup(plan, true);
+    lastSavedPlanRefSig.set(plan);
+    (store.config as ReturnType<typeof signal>).set({
+      provider: 'openrouter' as const,
+      providerConfigs: {
+        ...defaultProviderConfigs(),
+        openrouter: {
+          ...defaultProviderConfigs().openrouter,
+          selectedModel: '   ',
+        },
+      },
+    });
+    overridesSig.set({ 'docs/10-architecture/backend-architecture.md': 'edited' });
+    (store.captureUserEditSummary as ReturnType<typeof vi.fn>).mockReturnValue({
+      capturedAt: new Date().toISOString(),
+      preservedFilePaths: [],
+      addedElements: [],
+      removedElements: [],
+      fieldChanges: [],
+      naturalLanguageDigest: 'mock summary',
+    });
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const regenButton = Array.from(root.querySelectorAll('.workspace-toolbar p-button'))
+      .find((el) => (el.textContent ?? '').includes('Regenerate')) as HTMLElement | undefined;
+    expect(regenButton).toBeDefined();
+    const inner = regenButton!.querySelector('button') as HTMLButtonElement | null;
+    expect(inner).not.toBeNull();
+    expect(inner!.disabled).toBe(false);
+    inner!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(store.failRegenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'auth',
+        message: expect.stringContaining('Select a model'),
+      }),
+    );
+    expect(root.querySelector('.regenerate-error')).not.toBeNull();
+    expect(root.querySelector('.regenerate-error')?.textContent ?? '').toContain('Select a model');
+  });
+
+  it('surfaces a visible error on the editor when Regenerate is clicked with a missing API key', async () => {
+    const plan = minimalPlanFixture;
+    const { fixture, store, overridesSig, lastSavedPlanRefSig } = setup(plan, true);
+    lastSavedPlanRefSig.set(plan);
+    (store.apiKey as ReturnType<typeof signal>).set('   ');
+    overridesSig.set({ 'docs/10-architecture/backend-architecture.md': 'edited' });
+    (store.captureUserEditSummary as ReturnType<typeof vi.fn>).mockReturnValue({
+      capturedAt: new Date().toISOString(),
+      preservedFilePaths: [],
+      addedElements: [],
+      removedElements: [],
+      fieldChanges: [],
+      naturalLanguageDigest: 'mock summary',
+    });
+    fixture.detectChanges();
+
+    const regenButton = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.workspace-toolbar p-button'),
+    ).find((el) => (el.textContent ?? '').includes('Regenerate')) as HTMLElement | undefined;
+    expect(regenButton).toBeDefined();
+    const inner = regenButton!.querySelector('button') as HTMLButtonElement | null;
+    expect(inner).not.toBeNull();
+    expect(inner!.disabled).toBe(false);
+    inner!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(store.failRegenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'auth',
+        message: expect.stringContaining('Set your'),
+      }),
+    );
+    expect((fixture.nativeElement as HTMLElement).querySelector('.regenerate-error')?.textContent ?? '').toContain(
+      'Set your',
+    );
   });
 
   it('forwards the full refinement chat transcript into regenerateSectioned across multiple sessions', async () => {
@@ -698,6 +807,7 @@ describe('EditorWorkspaceComponent', () => {
     (regenButton!.querySelector('button') as HTMLButtonElement).click();
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(regenerateSectioned).toHaveBeenCalledTimes(1);
     expect(store.setPlan).toHaveBeenCalled();

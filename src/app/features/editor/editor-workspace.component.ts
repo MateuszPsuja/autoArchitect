@@ -69,6 +69,14 @@ function deriveInputFromPlan(plan: Plan): GeneratePromptInput {
       </section>
 
       @if (store.hasPlan()) {
+        @if (store.isGenerating()) {
+          <div class="regenerating-sticky" role="status" aria-live="assertive" data-testid="regenerating-indicator">
+            <span class="regenerating-sticky-spinner" aria-hidden="true"></span>
+            <span class="regenerating-sticky-text">
+              Regenerating with your edits — please wait.
+            </span>
+          </div>
+        }
         <section class="card editor-shell">
           @if (store.isGenerating()) {
             <div class="regenerating-banner" role="status" aria-live="polite">
@@ -171,6 +179,39 @@ function deriveInputFromPlan(plan: Plan): GeneratePromptInput {
       line-height: 1.4;
     }
 
+    .regenerating-sticky {
+      align-items: center;
+      background: var(--primary-color);
+      box-shadow: 0 2px 12px color-mix(in srgb, var(--primary-color) 40%, transparent);
+      color: var(--primary-contrast-color, #fff);
+      display: flex;
+      font-weight: 600;
+      gap: 0.75rem;
+      justify-content: center;
+      left: 0;
+      padding: 0.85rem 1rem;
+      position: sticky;
+      top: 0;
+      width: 100%;
+      z-index: 1000;
+    }
+
+    .regenerating-sticky-spinner {
+      animation: regenerating-spin 0.8s linear infinite;
+      border: 3px solid color-mix(in srgb, var(--primary-contrast-color, #fff) 30%, transparent);
+      border-top-color: var(--primary-contrast-color, #fff);
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+      height: 1.25rem;
+      width: 1.25rem;
+    }
+
+    .regenerating-sticky-text {
+      font-size: 1rem;
+      letter-spacing: 0.01em;
+    }
+
     .regenerate-error {
       align-items: flex-start;
       background: color-mix(in srgb, var(--red-500, #ef4444) 12%, transparent);
@@ -263,12 +304,28 @@ export class EditorWorkspaceComponent {
   }
 
   protected async startRegenerate(): Promise<void> {
+    // Flush any focused form field before evaluating canRegenerate so a typed-
+    // but-not-blurred edit on Plan Fields (which only commits on blur) counts
+    // as a user change. Otherwise the button stays gray and the click looks
+    // like nothing happened (memory regenerate.idea_change_not_picked_up).
+    const active = (typeof document !== 'undefined'
+      ? document.activeElement
+      : null) as (HTMLElement & { blur?: () => void }) | null;
+    if (active && typeof active.blur === 'function' && active !== document.body) {
+      active.blur();
+    }
     if (!this.canRegenerate()) return;
     const plan = this.store.plan();
     if (!plan) return;
     const capturedSummary = this.store.captureUserEditSummary();
     const chatInstruction = this.collectFullRefinementHistory(plan);
-    if (!capturedSummary && !chatInstruction) return;
+    if (!capturedSummary && !chatInstruction) {
+      this.store.failRegenerate({
+        type: 'auth',
+        message: 'Nothing to regenerate — edit the plan or refine with AI first.',
+      });
+      return;
+    }
     const summary = capturedSummary ?? emptyUserEditSummary();
 
     const cfg = this.store.config();
@@ -276,7 +333,7 @@ export class EditorWorkspaceComponent {
     const slot = cfg.providerConfigs[cfg.provider];
     const model = slot.selectedModel.trim();
     if (!model) {
-      this.store.setError({
+      this.store.failRegenerate({
         type: 'auth',
         message: 'Select a model in Config before regenerating.',
       });
@@ -284,7 +341,7 @@ export class EditorWorkspaceComponent {
     }
     const apiKey = this.store.apiKey().trim();
     if (descriptor.requiresApiKey && !apiKey) {
-      this.store.setError({
+      this.store.failRegenerate({
         type: 'auth',
         message: `Set your ${descriptor.apiKeyLabel} in Config before regenerating.`,
       });
@@ -332,9 +389,10 @@ export class EditorWorkspaceComponent {
       },
     });
 
-    // Surface the generation statistics live on /planner (where the streaming
-    // output, activity panel, and stats card live) instead of leaving the user
-    // staring at a background "Regenerating…" banner in the editor.
+    // Navigate to /planner so the user sees the regenerating view (matching
+    // the initial-generate UX). Streaming tokens, activity panel, and the
+    // live stats card all live on /planner. On success/error the flow
+    // navigates back to /editor below. (memory regenerate.navigate_to_planner)
     void this.router.navigate(['/planner']);
 
     try {
