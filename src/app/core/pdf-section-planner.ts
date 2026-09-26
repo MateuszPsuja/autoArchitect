@@ -4,7 +4,7 @@ export type PdfSectionKind =
   | 'System Overview'
   | 'Bounded Contexts'
   | 'Architecture Layers'
-  | 'Per-Layer Spec Kit Highlights'
+  | 'Per-Layer Architecture Highlights'
   | 'Domain Deep Dive'
   | 'Key Workflows'
   | 'Architecture Decisions (ADRs)'
@@ -14,7 +14,7 @@ export const PDF_SECTION_KINDS: readonly PdfSectionKind[] = [
   'System Overview',
   'Bounded Contexts',
   'Architecture Layers',
-  'Per-Layer Spec Kit Highlights',
+  'Per-Layer Architecture Highlights',
   'Domain Deep Dive',
   'Key Workflows',
   'Architecture Decisions (ADRs)',
@@ -25,7 +25,7 @@ export function computeActiveSectionList(plan: Plan): readonly PdfSectionKind[] 
   const result: PdfSectionKind[] = [];
 
   for (const kind of PDF_SECTION_KINDS) {
-    if (kind === 'Per-Layer Spec Kit Highlights') {
+    if (kind === 'Per-Layer Architecture Highlights') {
       const anyTechContext = plan.architectureLayers.some((l) => {
         const tc = l.technicalContext;
         if (!tc) return false;

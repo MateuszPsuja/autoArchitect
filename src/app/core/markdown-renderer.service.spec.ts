@@ -781,7 +781,7 @@ describe('MarkdownRendererService', () => {
         '## Acceptance Criteria Quality',
         '## Test Coverage',
         '## NFR Coverage',
-        '## Spec-Kit Compliance',
+        '## Bundle Compliance',
       ];
 
       let lastIndex = -1;
@@ -806,7 +806,7 @@ describe('MarkdownRendererService', () => {
         '- [x] CHK004 All 2 architecture layer(s) ship a non-empty `constitutionCheck[]` (NFRs + quality bars).',
       );
       expect(content).toContain(
-        '- [x] CHK005 All 2 architecture layer(s) carry the spec-kit section set: `summary`, `technicalContext` (5 rows), `projectStructure`, `complexityTracking`, `domainAreas`.',
+        '- [x] CHK005 All 2 architecture layer(s) carry the section set: `summary`, `technicalContext` (5 rows), `projectStructure`, `complexityTracking`, `domainAreas`.',
       );
     });
 
@@ -1185,11 +1185,11 @@ describe('MarkdownRendererService', () => {
       expect(spec.content).not.toMatch(/^## Success Criteria \(mandatory\)$/m);
     });
 
-    it('emits the __SPECKIT_COMMAND_PLAN__ Note line and Structure Decision line in plan.md', () => {
+    it('emits the planner Note line and Structure Decision line in plan.md', () => {
       const files = service.toMarkdownFiles(minimalPlanFixture);
       const plan = files.find((f) => f.path === `${PREFIX}/plan.md`)!;
       expect(plan.content).toContain(
-        '**Note**: This template is filled in by the `__SPECKIT_COMMAND_PLAN__` command; its definition describes the execution workflow.',
+        '**Note**: This template describes the planner\'s implementation workflow.',
       );
       expect(plan.content).toContain(
         '**Structure Decision**: [Document the selected structure — see the per-layer `projectStructureTree` diagrams in `docs/10-architecture/`]',

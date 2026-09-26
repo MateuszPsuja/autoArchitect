@@ -48,7 +48,7 @@ describe('computeActiveSectionList', () => {
       'System Overview',
       'Bounded Contexts',
       'Architecture Layers',
-      'Per-Layer Spec Kit Highlights',
+      'Per-Layer Architecture Highlights',
       'Domain Deep Dive',
       'Key Workflows',
       'Architecture Decisions (ADRs)',
@@ -61,7 +61,7 @@ describe('computeActiveSectionList', () => {
       architectureLayers: [buildLayer({ id: 'frontend' })],
     });
     const result = computeActiveSectionList(plan);
-    expect(result).not.toContain('Per-Layer Spec Kit Highlights');
+    expect(result).not.toContain('Per-Layer Architecture Highlights');
   });
 
   it('includes Per-Layer Spec Kit Highlights when a layer has technicalContext populated even if complexityTracking is empty', () => {
@@ -80,7 +80,7 @@ describe('computeActiveSectionList', () => {
       ],
     });
     const result = computeActiveSectionList(plan);
-    expect(result).toContain('Per-Layer Spec Kit Highlights');
+    expect(result).toContain('Per-Layer Architecture Highlights');
   });
 
   it('includes Per-Layer Spec Kit Highlights when a layer has non-empty complexityTracking', () => {
@@ -93,7 +93,7 @@ describe('computeActiveSectionList', () => {
       ],
     });
     const result = computeActiveSectionList(plan);
-    expect(result).toContain('Per-Layer Spec Kit Highlights');
+    expect(result).toContain('Per-Layer Architecture Highlights');
   });
 
   it('skips Key Workflows when plan.workflows is empty', () => {
@@ -131,6 +131,6 @@ describe('computeActiveSectionList', () => {
   it('skips Per-Layer Spec Kit Highlights when no architectureLayers exist', () => {
     const plan = buildPlan();
     const result = computeActiveSectionList(plan);
-    expect(result).not.toContain('Per-Layer Spec Kit Highlights');
+    expect(result).not.toContain('Per-Layer Architecture Highlights');
   });
 });

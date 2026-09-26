@@ -68,13 +68,13 @@ describe('ExportService', () => {
     expect(specMd).toContain(`**Input**: User description: "${idea}"`);
   });
 
-  it('emits the __SPECKIT_COMMAND_PLAN__ Note line and Structure Decision in zipped plan.md', async () => {
+  it('emits the planner Note line and Structure Decision in zipped plan.md', async () => {
     const { service } = setup();
     const blob = await service.buildZip(minimalPlanFixture, {});
     const zip = await JSZip.loadAsync(blob);
     const prefix = featureFolder(minimalPlanFixture);
     const planMd = await zip.file(`${prefix}/plan.md`)!.async('string');
-    expect(planMd).toContain('**Note**: This template is filled in by the `__SPECKIT_COMMAND_PLAN__` command');
+    expect(planMd).toContain('**Note**: This template describes the planner\'s implementation workflow.');
     expect(planMd).toContain('**Structure Decision**:');
   });
 

@@ -170,13 +170,13 @@ export class MarkdownRendererService {
   private buildSpecKitReadme(plan: Plan): string {
     const branch = plan.meta.branchName ?? branchName(plan);
     return [
-      `# ${plan.meta.title} — spec-kit Export`,
+      `# ${plan.meta.title} — Architecture & Planning Bundle`,
       '',
       `> ${plan.meta.summary}`,
       '',
-      `**Branch:** \`${branch}\` · **Export version:** \`3\` (spec-kit shape; per-feature numbered folder \`${branch}/\`)`,
+      `**Branch:** \`${branch}\` · **Export version:** \`3\` · **Per-feature folder:** \`${branch}/\``,
       '',
-      'This bundle follows the GitHub [spec-kit spec-driven](https://github.com/github/spec-kit/blob/main/spec-driven.md) deliverable shape. Top-level layout:',
+      "This bundle is the planner's standard documentation set. Top-level layout:",
       '',
       '| Artefact | Path |',
       '|---|---|',
@@ -198,7 +198,7 @@ export class MarkdownRendererService {
       '| Per-directory AGENTS.md | `<directory>/AGENTS.md` |',
       '| Plan JSON (root of bundle, for tools) | `../plan.json` |',
       '',
-      '> **Note.** `research.md` is **omitted** — spec-kit allows omission when no research phase produced notes. Once the planner grows a research step, this README will list it.',
+      '> **Note.** `research.md` is **omitted** when no research phase produced notes. Once the planner grows a research step, this README will list it.',
       '',
       `Generated: ${plan.meta.generatedAt}`,
     ].join('\n');
@@ -673,7 +673,7 @@ export class MarkdownRendererService {
       '',
       `**Branch**: \`${branch}\` · **Date**: ${plan.meta.generatedAt} · **Spec**: [./spec.md](./spec.md)`,
       '',
-      '**Note**: This template is filled in by the `__SPECKIT_COMMAND_PLAN__` command; its definition describes the execution workflow.',
+      '**Note**: This template describes the planner\'s implementation workflow.',
       '',
       '## Summary',
       '',
@@ -1303,7 +1303,7 @@ export class MarkdownRendererService {
     lines.push('- `[P]` tasks can run in parallel only when their `fileHints` AND `userStoryIds` are disjoint from every other in-flight task.');
     lines.push('- `[USn]` markers cross-link the task to a User Story in `spec.md`.');
     lines.push(
-      '- `(ghost)` / `(synth)` markers flag tasks synthesised by the renderer to close spec-kit coverage gaps; they are NOT persisted back to `plan.agentTasks` and disappear if the LLM produces real work on the next regeneration.',
+      '- `(ghost)` / `(synth)` markers flag tasks synthesised by the renderer to close coverage gaps; they are NOT persisted back to `plan.agentTasks` and disappear if the LLM produces real work on the next regeneration.',
     );
 
     return lines.join('\n');
@@ -1494,7 +1494,7 @@ export class MarkdownRendererService {
         id: `synth-${story.id}-${cluster.id}`,
         title: cluster.title,
         description:
-          `Synthetic starter task synthesised by the renderer to close spec-kit coverage for "${cluster.id}" cluster${note([...frMatches, ...scMatches])}.`.trim(),
+          `Synthetic starter task synthesised by the renderer to close coverage for "${cluster.id}" cluster${note([...frMatches, ...scMatches])}.`.trim(),
         fileHints: cluster.hint,
         userStoryIds: [story.id],
         acceptanceCriteria: [
@@ -1532,7 +1532,7 @@ export class MarkdownRendererService {
     for (const m of measurement) {
       lines.push(`- [ ] ${next()} ${m.implementation}`);
     }
-    lines.push(`- [ ] ${next()} Document the spec-kit compliance audit + changelog updates.`);
+    lines.push(`- [ ] ${next()} Document the compliance audit + changelog updates.`);
     lines.push('');
   }
 
@@ -1572,9 +1572,9 @@ export class MarkdownRendererService {
     let counter = 1;
     const next = (): string => `CHK${String(counter++).padStart(3, '0')}`;
     const lines: string[] = [
-      `# ${plan.meta.title} — spec-kit Compliance Checklist`,
+      `# ${plan.meta.title} — Compliance Checklist`,
       '',
-      '> Derived from `Plan` data. Every checkbox below is a yes/no gate that the planner re-evaluates whenever the plan is regenerated. Spec-kit calls this artefact `checklist.md` (the `/speckit.checklist` step).',
+      '> Derived from `Plan` data. Every checkbox below is a yes/no gate that the planner re-evaluates whenever the plan is regenerated.',
       '',
       '## Specification Clarity',
       '',
@@ -1597,7 +1597,7 @@ export class MarkdownRendererService {
     const agentTasks = plan.agentTasks ?? [];
     const tasksWithoutAC = agentTasks.filter((t) => !t.acceptanceCriteria || t.acceptanceCriteria.length === 0);
     if (agentTasks.length === 0) {
-      lines.push(`- [ ] ${next()} No \`AgentTask\`s are defined yet — generate tasks via \`/speckit.tasks\`.`, '');
+      lines.push(`- [ ] ${next()} No \`AgentTask\`s are defined yet — generate tasks via the planner's task synthesis step.`, '');
     } else if (tasksWithoutAC.length === 0) {
       lines.push(`- [x] ${next()} All ${agentTasks.length} agent task(s) carry a non-empty \`acceptanceCriteria[]\`.`, '');
     } else {
@@ -1642,7 +1642,7 @@ export class MarkdownRendererService {
       );
     }
 
-    lines.push('## Spec-Kit Compliance', '');
+    lines.push('## Bundle Compliance', '');
     const complianceIssues: string[] = [];
     for (const layer of layers) {
       const missing: string[] = [];
@@ -1662,7 +1662,7 @@ export class MarkdownRendererService {
       lines.push(`- [ ] ${next()} No architecture layers defined.`, '');
     } else if (complianceIssues.length === 0) {
       lines.push(
-        `- [x] ${next()} All ${layers.length} architecture layer(s) carry the spec-kit section set: \`summary\`, \`technicalContext\` (5 rows), \`projectStructure\`, \`complexityTracking\`, \`domainAreas\`.`,
+        `- [x] ${next()} All ${layers.length} architecture layer(s) carry the section set: \`summary\`, \`technicalContext\` (5 rows), \`projectStructure\`, \`complexityTracking\`, \`domainAreas\`.`,
         '',
       );
     } else {
@@ -2618,7 +2618,7 @@ export class MarkdownRendererService {
       lines.push('## Governance', '');
       lines.push(
         '- This constitution is amended, not rewritten. When an article changes, append a changelog row to the **Changelog** table and bump the **Version** field.',
-        '- The 9-article structure mirrors GitHub spec-kit\'s `constitution-template.md`. Adding or removing articles requires a major version bump.',
+        '- The 9-article structure follows the standard planner `constitution-template.md`. Adding or removing articles requires a major version bump.',
         '- Per-layer Constitution Checks in `plan.md` MUST be traceable to one of the 9 articles above.',
         '',
       );

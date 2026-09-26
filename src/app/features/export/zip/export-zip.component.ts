@@ -11,7 +11,7 @@ import { exportBaseName } from '../../../core/feature-slug';
   imports: [ButtonModule],
   template: `
     <section class="card export-shell" aria-labelledby="export-zip-heading">
-      <h3 id="export-zip-heading">Spec-kit Export (.zip)</h3>
+      <h3 id="export-zip-heading">Architecture & Planning Export (.zip)</h3>
 
       <ul class="file-list">
         @for (file of files(); track file.path) {
