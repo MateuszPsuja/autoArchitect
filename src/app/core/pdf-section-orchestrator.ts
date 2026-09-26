@@ -60,10 +60,6 @@ export class PdfSectionOrchestrator {
     const skills = resolveSkillsForStage(this.agents, 'pdf');
     const partialSchema = { type: 'object', properties: { sections: { type: 'array' } } };
 
-    const headerKinds: PdfSectionKind[] = ['Executive Summary' as PdfSectionKind];
-    if (activeSections[0] === 'System Overview') {
-      headerKinds.push('System Overview');
-    }
     const headerTargetKinds = this.buildHeaderTargetKinds(plan, activeSections);
     const sectionChunks = this.chunkSections(activeSections.slice(headerTargetKinds.length));
 

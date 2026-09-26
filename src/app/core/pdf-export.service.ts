@@ -304,6 +304,13 @@ export class PdfExportService {
 
     await Promise.all(refs.map((ref) => this.resolveMermaidRef(ref, plan, renderedDiagrams)));
 
+    // Defensive: strip any stray "Executive Summary" section the LLM may still emit
+    // despite the prompt's instruction. The cover page renders the summary inline, so
+    // emitting it again as a body section would produce a duplicate heading on page 3.
+    document.sections = document.sections.filter(
+      (s) => s.heading.trim().toLowerCase() !== 'executive summary',
+    );
+
     const content: PdfMakeContent[] = [];
     content.push(...this.buildCoverPage(document, plan));
 
@@ -489,30 +496,6 @@ export class PdfExportService {
       style: 'coverMeta',
     });
     elements.push(this.buildHairline(SECTION_RULE_COLOR));
-    elements.push({
-      text: 'Executive Summary',
-      style: 'sectionHeading',
-    });
-    if (document.executiveSummary.length < 40) {
-      elements.push({
-        text: 'Plan has no executive summary — regenerated with placeholder.',
-        style: 'paragraph',
-        margin: [0, 2, 0, 2],
-        color: '#92400e',
-      });
-    }
-    elements.push({
-      text: document.executiveSummary,
-      style: 'paragraph',
-      margin: [0, 2, 0, 4],
-    });
-    elements.push({
-      text: `${document.sections.length} sections`,
-      style: 'coverSectionCount',
-    });
-
-
-
     elements.push({ text: '', pageBreak: 'after' });
     stripTrailingBottomMargin(elements);
     return elements;

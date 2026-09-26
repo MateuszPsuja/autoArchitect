@@ -59,13 +59,12 @@ describe('PdfExportService — composition', () => {
     service = TestBed.inject(PdfExportService);
   });
 
-  it('builds a cover page that contains title, subtitle, and Executive Summary', () => {
+  it('builds a cover page that contains title and subtitle', () => {
     const cover = service.buildCoverPage(buildDocument(), minimalPlanFixture);
     expect(cover.length).toBeGreaterThan(0);
     const flat = JSON.stringify(cover);
     expect(flat).toContain('Plan Spec');
     expect(flat).toContain('A concise distillation of the active plan.');
-    expect(flat).toContain('Executive Summary');
 
 
 
@@ -328,13 +327,12 @@ describe('PdfExportService — block rendering', () => {
     expect(flat).not.toContain('Model:');
   });
 
-  it('buildCoverPage still renders title, subtitle, and Executive Summary heading + body', () => {
+  it('buildCoverPage renders title + subtitle and never the literal "Executive Summary" string', () => {
     const cover = service.buildCoverPage(buildDocument(), minimalPlanFixture);
     const flat = JSON.stringify(cover);
     expect(flat).toContain('Plan Spec');
     expect(flat).toContain('A concise distillation of the active plan.');
-    expect(flat).toContain('Executive Summary');
-    expect(flat).toContain('This PDF distils');
+    expect(flat).not.toContain('Executive Summary');
   });
 
   it('buildCoverPage paints the top accent bar (canvas) and the right-aligned meta line', () => {
@@ -347,7 +345,6 @@ describe('PdfExportService — block rendering', () => {
     expect(flat).toMatch(/Generated .* · /);
 
     expect(flat).toContain('ARCHITECTURE SPECIFICATION');
-    expect(flat).toContain(`${buildDocument().sections.length} sections`);
   });
 
   it('keeps wide diagrams at the default on-page width and shrinks only tall ones', () => {

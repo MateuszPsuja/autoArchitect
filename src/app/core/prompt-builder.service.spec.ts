@@ -685,13 +685,14 @@ describe('PromptBuilderService — PDF creator payload and prompt', () => {
     expect(PDF_CREATOR_SYSTEM_PROMPT).not.toMatch(/\baudience:\s*['"`]/);
   });
 
-  it('PDF_HEADER_SYSTEM_PROMPT contains the section-stitching mode and "two sections" rule', async () => {
+  it('PDF_HEADER_SYSTEM_PROMPT contains the section-stitching mode and "exactly one section" rule', async () => {
     const { PDF_HEADER_SYSTEM_PROMPT } = await import('./prompt-builder.service');
     expect(PDF_HEADER_SYSTEM_PROMPT).toContain('executiveSummary');
-    expect(PDF_HEADER_SYSTEM_PROMPT).toMatch(/two sections/i);
-    expect(PDF_HEADER_SYSTEM_PROMPT).toContain('Executive Summary');
+    expect(PDF_HEADER_SYSTEM_PROMPT).toMatch(/exactly one section/i);
     expect(PDF_HEADER_SYSTEM_PROMPT).toContain('System Overview');
     expect(PDF_HEADER_SYSTEM_PROMPT).toContain('blueprint');
+    expect(PDF_HEADER_SYSTEM_PROMPT).not.toMatch(/EXACTLY TWO sections/i);
+    expect(PDF_HEADER_SYSTEM_PROMPT).not.toContain('"Executive Summary"');
   });
 
   it('PDF_SECTION_SYSTEM_PROMPT contains the prior-sections + target-sections wiring', async () => {

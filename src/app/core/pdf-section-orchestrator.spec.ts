@@ -132,12 +132,12 @@ describe('PdfSectionOrchestrator — 7-call pipeline (one section per chunk)', (
     );
   });
 
-  it('makes 7 LLM calls: header + 6 single-section calls with target kinds piped into each call', async () => {
+  it('makes 7 LLM calls: header emits System Overview only, then 6 single-section calls with target kinds piped into each call', async () => {
     const plan = buildPlan();
     graphStub.runOneCall.mockImplementation(async (_opts: RunOneCallOptions) => {
       const calls = graphStub.runOneCall.mock.calls.length;
       if (calls === 1) {
-        return { document: headerDoc([section('Executive Summary', 'es'), section('System Overview', 'so')]), error: null, attempts: 1, repair: null };
+        return { document: headerDoc([section('System Overview', 'so')]), error: null, attempts: 1, repair: null };
       }
       if (calls === 2) {
         return { document: partialDoc([section('Bounded Contexts', 'bc')]), error: null, attempts: 1, repair: null };
@@ -183,10 +183,11 @@ describe('PdfSectionOrchestrator — 7-call pipeline (one section per chunk)', (
     const headerPrompt = await headerOpts.renderPrompt('');
     expect(headerPrompt).toContain('Executive Summary');
     expect(headerPrompt).toContain('System Overview');
+    expect(headerPrompt).toMatch(/exactly one section/i);
+    expect(headerPrompt).not.toMatch(/sections — EXACTLY TWO sections/i);
 
     const call2Prompt = await call2Opts.renderPrompt('');
     expect(call2Prompt).toContain('Bounded Contexts');
-    expect(call2Prompt).toContain('Executive Summary');
     expect(call2Prompt).toContain('System Overview');
     expect(call2Prompt).toContain('Target sections for THIS call');
     expect(call2Prompt).toContain('"Bounded Contexts"');
@@ -220,7 +221,7 @@ describe('PdfSectionOrchestrator — 7-call pipeline (one section per chunk)', (
   it('marks the batch as placeholder when its call fails twice and surfaces placeholders count', async () => {
     const plan = buildPlan();
     const callResponses: Array<{ document: PdfDocument | null; error: { type: 'provider_error'; message: string } | null; attempts: number; repair: null }> = [
-      { document: headerDoc([section('Executive Summary', 'es'), section('System Overview', 'so')]), error: null, attempts: 1, repair: null },
+      { document: headerDoc([section('System Overview', 'so')]), error: null, attempts: 1, repair: null },
       { document: null, error: { type: 'provider_error', message: 'call 2 failed' }, attempts: 3, repair: null },
       { document: partialDoc([section('Architecture Layers', 'al')]), error: null, attempts: 1, repair: null },
       { document: partialDoc([section('Per-Layer Spec Kit Highlights', 'pls')]), error: null, attempts: 1, repair: null },
@@ -236,7 +237,7 @@ describe('PdfSectionOrchestrator — 7-call pipeline (one section per chunk)', (
 
     expect(result.document).not.toBeNull();
     expect(result.placeholders).toBe(1);
-    expect(result.document?.sections.map((s) => s.heading)).toContain('Executive Summary');
+    expect(result.document?.sections.map((s) => s.heading)).toContain('System Overview');
     expect(result.document?.sections.map((s) => s.heading)).not.toContain('Bounded Contexts');
   });
 
@@ -264,7 +265,7 @@ describe('PdfSectionOrchestrator — 7-call pipeline (one section per chunk)', (
       callIndex += 1;
       if (callIndex === 1) {
         await opts.llmInvoker('p');
-        return { document: headerDoc([section('Executive Summary', 'es'), section('System Overview', 'so')]), error: null, attempts: 1, repair: null };
+        return { document: headerDoc([section('System Overview', 'so')]), error: null, attempts: 1, repair: null };
       }
       return { document: partialDoc([section('Bounded Contexts', 'bc')]), error: null, attempts: 1, repair: null };
     });
