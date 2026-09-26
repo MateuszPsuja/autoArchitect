@@ -27,6 +27,7 @@ export function normalizeMermaidChart(chart: string): string {
 
 
 
+
         if (isSequence) {
           const m = line.match(sequenceArrowRegex);
           if (m) {
@@ -34,14 +35,28 @@ export function normalizeMermaidChart(chart: string): string {
           }
         }
 
-        return line.replace(/-->(?:\|)(.*?)(?:\|)\s*/g, (_match, rawLabel: string) => {
+        const rewrittenSolid = line.replace(/-->(?:\|)(.*?)(?:\|)\s*/g, (_match, rawLabel: string) => {
           const unquoted = rawLabel.trim().replace(/^"([\s\S]*)"$/, '$1');
           return `-->|"${escapeEdgeLabel(unquoted)}"| `;
         });
+
+        return rewrittenSolid.replace(
+          /(-\.\s+)((?:(?!\s+\.->).)*?)(\s+\.->)/g,
+          (_match, open: string, label: string, close: string) => {
+            const trimmed = label.trim();
+            if (
+              !trimmed ||
+              (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+              !/[\.|\\]/.test(trimmed)
+            ) {
+              return `${open}${trimmed}${close}`;
+            }
+            return `${open}"${escapeEdgeLabel(trimmed)}"${close}`;
+          },
+        );
       })
       .join('\n');
   };
-
   const diagramTypeRegex =
     /^\s*(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|gantt|erDiagram|journey|pie|mindmap|timeline|gitgraph|requirementDiagram)\b/i;
 

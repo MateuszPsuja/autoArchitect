@@ -1,3 +1,5 @@
+import mermaid from 'mermaid';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { normalizeMermaidChart } from './mermaid-utils';
 
 describe('normalizeMermaidChart', () => {
@@ -246,5 +248,97 @@ N1 --> N2
 N2 --> 1[ArticleAggregate]`;
     const out = normalizeMermaidChart(s);
     expect(out).not.toMatch(/^end\s*$/m);
+  });
+
+  it('quotes dotted labels inside -. x .-> arrows', () => {
+    const s = 'flowchart LR\nA[A]\nBE -. z.infer .-> Zod';
+    const out = normalizeMermaidChart(s);
+    expect(out).toContain('-. "z.infer" .->');
+  });
+
+  it('leaves already-quoted dashed labels unchanged (idempotent)', () => {
+    const s = 'flowchart LR\nA[A]\nBE -. "z.infer" .-> Zod';
+    const once = normalizeMermaidChart(s);
+    const twice = normalizeMermaidChart(once);
+    expect(once).toContain('-. "z.infer" .->');
+    expect(twice).toBe(once);
+  });
+
+  it('does not touch bare-word labels in -. x .-> arrows', () => {
+    const s = 'flowchart LR\nA[A]\nBE -. validate .-> OAS';
+    const out = normalizeMermaidChart(s);
+    expect(out).toContain('-. validate .->');
+    expect(out).not.toContain('-"validate"');
+  });
+
+  it('does not touch no-label -.-> arrows', () => {
+    const s = 'flowchart LR\nA[A]\nA -.-> B';
+    const out = normalizeMermaidChart(s);
+    expect(out).toContain('A -.-> B');
+  });
+
+  it('escapes dots inside pipeline-style dashed labels', () => {
+    const s = 'flowchart LR\nA[A]\nA -. x|y .-> B';
+    const out = normalizeMermaidChart(s);
+    expect(out).toContain('-. "x|y" .->');
+  });
+
+  it('renders the microblog shared layer diagram cleanly', () => {
+    const s = `flowchart LR
+  subgraph SH["shared"]
+    Zod[Zod schemas]
+    Py[Pydantic mirrors]
+    OAS[openapi.yaml]
+    AAI[asyncapi.yaml]
+  end
+  BE[FastAPI] -. "imports" .-> Py
+  FE[Frontend HttpClient] -. "z.infer" .-> Zod
+  CI[CI codegen] --> OAS
+  CI --> AAI
+  CI --> Py
+  BE -. "validate" .-> OAS
+  FE -. "validate" .-> OAS`;
+    const once = normalizeMermaidChart(s);
+    const twice = normalizeMermaidChart(once);
+    expect(once).toContain('-. "imports" .->');
+    expect(once).toContain('-. "z.infer" .->');
+    expect(once).toContain('-. "validate" .->');
+    expect(twice).toBe(once);
+  });
+
+  it('rewrites an unquoted dotted label in a shared-layer-style diagram', () => {
+    const s = `flowchart LR
+  subgraph SH["shared"]
+    Zod[Zod schemas]
+  end
+  FE[Frontend HttpClient] -. z.infer .-> Zod`;
+    const out = normalizeMermaidChart(s);
+    expect(out).toContain('-. "z.infer" .->');
+    expect(out).not.toContain('-. z.infer .->');
+  });
+});
+
+describe('normalizeMermaidChart — real Mermaid parse regression', () => {
+  beforeAll(async () => {
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
+  });
+
+  it('makes the microblog shared layer mermaid diagram parse cleanly', async () => {
+    const raw = `flowchart LR
+  subgraph SH["shared"]
+    Zod[Zod schemas]
+    Py[Pydantic mirrors]
+    OAS[openapi.yaml]
+    AAI[asyncapi.yaml]
+  end
+  BE[FastAPI] -. imports .-> Py
+  FE[Frontend HttpClient] -. z.infer .-> Zod
+  CI[CI codegen] --> OAS
+  CI --> AAI
+  CI --> Py
+  BE -. validate .-> OAS
+  FE -. validate .-> OAS`;
+    const normalized = normalizeMermaidChart(raw);
+    await expect(mermaid.parse(normalized)).resolves.not.toThrow();
   });
 });
