@@ -3,10 +3,11 @@ import { MessageModule } from 'primeng/message';
 import { TabsModule } from 'primeng/tabs';
 import { ProjectStore } from '../../core/project.store';
 import { ExportJsonComponent } from './json/export-json.component';
+import { ExportOpenspecComponent } from './openspec/export-openspec.component';
 import { ExportPdfComponent } from './pdf/export-pdf.component';
 import { ExportZipComponent } from './zip/export-zip.component';
 
-type ExportTab = 'zip' | 'json' | 'pdf';
+type ExportTab = 'zip' | 'openspec' | 'json' | 'pdf';
 
 @Component({
   selector: 'app-export-workspace',
@@ -15,6 +16,7 @@ type ExportTab = 'zip' | 'json' | 'pdf';
     MessageModule,
     TabsModule,
     ExportZipComponent,
+    ExportOpenspecComponent,
     ExportJsonComponent,
     ExportPdfComponent,
   ],
@@ -33,8 +35,12 @@ type ExportTab = 'zip' | 'json' | 'pdf';
         <p-tabs [value]="active()" (valueChange)="active.set($any($event))">
           <p-tablist>
             <p-tab value="zip">
-              <i class="pi pi-file-archive"></i>
-              Spec-kit plan export
+              <i class="pi pi-file-o"></i>
+              SpecKit
+            </p-tab>
+            <p-tab value="openspec">
+              <i class="pi pi-sitemap"></i>
+              OpenSpec
             </p-tab>
             <p-tab value="json">
               <i class="pi pi-file-export"></i>
@@ -48,6 +54,9 @@ type ExportTab = 'zip' | 'json' | 'pdf';
           <p-tabpanels>
             <p-tabpanel value="zip">
               <app-export-zip />
+            </p-tabpanel>
+            <p-tabpanel value="openspec">
+              <app-export-openspec />
             </p-tabpanel>
             <p-tabpanel value="json">
               <app-export-json />

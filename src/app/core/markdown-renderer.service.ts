@@ -117,7 +117,7 @@ export class MarkdownRendererService {
     if (includeDirectoryAgents) {
       files.push(...this.buildDirectoryAgentsFiles(plan));
     }
-    return files.map((f) => ({ ...f, content: this.sanitiseTerminology(f.content) }));
+    return files.map((f) => ({ ...f, content: this.applyTerminologyPipeline(f.content) }));
   }
 
   /**
@@ -127,8 +127,11 @@ export class MarkdownRendererService {
    * rendered Markdown can carry the LLM-invented variant into the bundle.
    * Also applies the vague-adjective sweep so spec-kit analysers can grep
    * for `[TODO: measure]` and re-prompt the user for measurable language.
+   *
+   * Public so downstream renderers (e.g. the OpenSpec export) can apply the
+   * exact same pipeline and stay in lockstep with spec-kit artefacts.
    */
-  private sanitiseTerminology(md: string): string {
+  applyTerminologyPipeline(md: string): string {
     if (!md) return md;
     const substitutions: ReadonlyArray<readonly [RegExp, string]> = [
       [/\b[Mm]ini\s?[Mm]ax\b/g, 'MiniMax'],
