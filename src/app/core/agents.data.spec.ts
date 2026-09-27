@@ -25,6 +25,22 @@ describe('agents.data seed (Phase 4)', () => {
     }
   });
 
+  it('declares the three Open Spec Verifier skills (skill-16/17/18) on agent-6', () => {
+    const openspecVerifier = AGENTS.find((a) => a.id === 'agent-6');
+    expect(openspecVerifier, 'seed should declare the Open Spec Verifier agent').toBeTruthy();
+    const skillIds = openspecVerifier?.skills.map((s) => s.id) ?? [];
+    expect(skillIds).toEqual(expect.arrayContaining(['skill-16', 'skill-17', 'skill-18']));
+  });
+
+  it('seeds skill-16/17/18 with a non-empty prompt', () => {
+    const openspecVerifier = AGENTS.find((a) => a.id === 'agent-6');
+    for (const id of ['skill-16', 'skill-17', 'skill-18']) {
+      const skill = openspecVerifier?.skills.find((s) => s.id === id);
+      expect(skill, `agent-6 should seed ${id}`).toBeTruthy();
+      expect(skill?.prompt?.length ?? 0, `${id} should have a non-trivial prompt`).toBeGreaterThan(80);
+    }
+  });
+
   it('every seed skill has a non-empty prompt ≥80 chars', () => {
     for (const agent of AGENTS) {
       for (const skill of agent.skills) {

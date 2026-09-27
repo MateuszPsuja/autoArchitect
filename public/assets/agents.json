@@ -48,5 +48,15 @@
       { "id": "skill-11", "name": "Stage Audit" },
       { "id": "skill-12", "name": "Citation / Cross-Ref Audit" }
     ]
+  },
+  {
+    "id": "agent-6",
+    "name": "Open Spec Verifier Agent",
+    "description": "Audits the generated OpenSpec change folder (openspec/changes/<slug>/{proposal.md, design.md, tasks.md, specs/<slug>/spec.md, specs/<slug>-architecture/spec.md}) for OpenSpec scenario grammar, capability/requirement completeness, and consistency with the source Plan JSON.",
+    "skills": [
+      { "id": "skill-16", "name": "OpenSpec Folder Compliance" },
+      { "id": "skill-17", "name": "Scenario / Requirement Audit" },
+      { "id": "skill-18", "name": "OpenSpec ↔ Plan Cross-Ref" }
+    ]
   }
 ]

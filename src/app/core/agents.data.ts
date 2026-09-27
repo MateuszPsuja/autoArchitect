@@ -448,4 +448,148 @@ Use 'error' for refs that would break a downstream renderer (e.g. an ADR that na
       },
     ],
   },
+  {
+    id: 'agent-6',
+    name: 'Open Spec Verifier Agent',
+    description:
+      'Audits the generated OpenSpec change folder (openspec/changes/<slug>/{proposal.md, design.md, tasks.md, specs/<slug>/spec.md, specs/<slug>-architecture/spec.md}) for OpenSpec scenario grammar, capability/requirement completeness, and consistency with the source Plan JSON.',
+    skills: [
+      {
+        id: 'skill-16',
+        name: 'OpenSpec Folder Compliance',
+        description:
+          'Walks the five OpenSpec files emitted by buildOpenSpecFileList(plan) (proposal, feature spec, architecture spec, design, tasks) and checks that each one contains its mandatory H2 / H3 sections in the documented order, including the proposal capability-id pair.',
+        prompt: `You audit the generated OpenSpec change folder under \`openspec/changes/<slug>/\`. Inputs: a Plan JSON (which carries \`meta.featureSlug\`) plus the five markdown files produced by \`buildOpenSpecFileList(plan)\`. Files arrive in this fixed order:
+
+1. proposal.md
+2. specs/<slug>/spec.md (feature spec)
+3. specs/<slug>-architecture/spec.md (architecture spec)
+4. design.md
+5. tasks.md
+
+For each file, verify the mandatory headings are present AND in the documented order. Flag any missing heading, any ordering violation (a section whose heading appears before an earlier required one), and any capability-id disagreement.
+
+\`\`\`text
+proposal.md
+  ## Why
+  ## What Changes
+  ## Capabilities
+    ### New Capabilities     (must list BOTH \`<slug>\` and \`<slug>-architecture\` capability ids)
+    ### Modified Capabilities
+  ## Impact
+
+feature spec     (specs/<slug>/spec.md)
+  # Capability: <title>      (single H1)
+  ## Purpose
+  ## ADDED Requirements
+
+architecture spec (specs/<slug>-architecture/spec.md)
+  # Capability: <title> — Architecture   (single H1)
+  ## Purpose
+  ## ADDED Requirements
+
+design.md
+  ## Context
+  ## Goals / Non-Goals
+  ## Decisions
+  ## Risks / Trade-offs
+
+tasks.md
+  # Tasks: <title>           (single H1)
+  ## 1. <Group title>        (at least one numbered group heading)
+\`\`\`
+
+Rules:
+
+1. The OpenSpec renderer emits plain markdown only — no Mermaid, no HTML, no embedded diagrams. Do NOT flag the absence of Mermaid blocks, \`## Diagrams\`, or any diagram-bearing heading as a violation.
+2. \`## Open Questions\` and \`## Migration Plan\` are NOT produced by the renderer and their absence is normal — do NOT flag their absence.
+3. The proposal \`### New Capabilities\` block must list exactly two capability ids backed by real spec.md paths: \`<slug>\` and \`<slug>-architecture\`. Flag any extra \`<slug>-something-else>\` entry as an ordering/id mismatch.
+4. \`### Modified Capabilities\` is rendered as \`_None — this change introduces new capabilities only._\` when empty; its presence as a placeholder is required, but the prose inside may be absent — only flag the complete omission of the H3.
+
+Output a JSON array — one finding per file with at least one issue, files with no issues are OMITTED — shaped as:
+
+\`\`\`json
+{
+  "path": "openspec/changes/<slug>/proposal.md",
+  "missingSections": ["## Impact", "### New Capabilities"],
+  "orderErrors": ["## Impact appears before ## Capabilities"],
+  "otherErrors": ["proposal.md \\u0060### New Capabilities\\u0060 does not list \\u0060<slug>-architecture\\u0060"]
+}
+\`\`\`
+
+\`missingSections\` is a list of the EXACT H2 / H3 headings that are missing for that file. \`orderErrors\` lists violations in textual order ("<section> appears before <section>"). \`otherErrors\` captures capability-id disagreements and other non-section-shape issues. Emit \`path\` exactly as the file path appears in the file list. Do NOT modify the change folder — only report.`,
+      },
+      {
+        id: 'skill-17',
+        name: 'Scenario / Requirement Audit',
+        description:
+          'Audit the OpenSpec change folder for grammar violations — Requirement/Scenario pairing, **WHEN**/**THEN**/**AND** bullet discipline, proposal capability naming, and tasks.md checklist grammar.',
+        prompt: `You audit the OpenSpec change folder for grammar violations: requirement/scenario pairing, \`**WHEN**\`/\`**THEN**\`/\`**AND**\` bullet discipline, proposal capability naming, and \`tasks.md\` checklist grammar. Inputs: the five markdown files produced by \`buildOpenSpecFileList(plan)\`. Rules:
+
+1. feature spec (specs/<slug>/spec.md) and architecture spec (specs/<slug>-architecture/spec.md):
+   - Every \`### Requirement: <id> <label>\` heading MUST be followed by at least one \`#### Scenario: <name>\` heading.
+   - Each \`#### Scenario:\` block MUST contain at least one \`- **WHEN** <text>\` line AND at least one \`- **THEN** <text>\` line. Optional \`- **AND** <text>\` continuation bullets are allowed and order-insensitive.
+   - A blank line MUST separate a requirement heading from its first scenario heading; flag a requirement that runs straight into the scenario without a blank line.
+2. proposal.md:
+   - The \`### New Capabilities\` block MUST list EXACTLY two capability ids whose corresponding spec.md paths exist under the change folder: \`<slug>\` and \`<slug>-architecture\`. Flag any extra capability id (e.g. \`<slug>-foo\`) that has no matching spec.md path, AND flag the absence of either core id.
+   - The \`### Modified Capabilities\` block MUST exist (the renderer emits a placeholder when empty); flag only the complete omission of the H3, not the placeholder prose.
+3. design.md:
+   - Each \`### Layer: <name>\` heading MUST correspond to exactly one plan.architectureLayers entry by its \`name\` field. Flag duplicate names or unmatched names.
+4. tasks.md:
+   - Every group heading MUST match the pattern \`## <N>. <Title>\` with N a positive integer and titles incrementing without gaps starting at 1.
+   - Every checkbox MUST match \`- [ ] <N>.<M> <description>\` where N matches its group heading number and M increments without gaps starting at 1.
+   - The fallback \`## 1. Bootstrap\` group is allowed and not a violation only when plan.agentTasks is empty/missing; otherwise it is duplicated and counts as an ordering error.
+
+Output a JSON array of findings shaped as:
+
+\`\`\`json
+{
+  "severity": "error" | "warning",
+  "path": "openspec/changes/<slug>/specs/<slug>/spec.md",
+  "message": "Requirement \\u0060US001\\u0060 has no \\u0060#### Scenario:\\u0060 heading.",
+  "fix": "Add at least one \\u0060#### Scenario:\\u0060 block under \\u0060### Requirement: US001\\u0060 using the WHEN/THEN/AND bullet discipline."
+}
+\`\`\`
+
+Use \`error\` for broken grammar (missing scenario under a requirement, missing WHEN/THEN bullet, malformed checkbox, missing requirement block, missing capability id). Use \`warning\` for stylistic issues (extra prose padding inside \`## Context\`, redundant bullets, presentation drift that does not break grammar). Order findings by \`path\` then \`severity\` (errors first). Do NOT modify the change folder — only report.`,
+      },
+      {
+        id: 'skill-18',
+        name: 'OpenSpec ↔ Plan Cross-Ref',
+        description:
+          'Walk every cross-reference between the OpenSpec change folder and the source Plan — proposal “Affected user stories” → userStories[*].id, design “Layer” blocks → architectureLayers[*].name, tasks group keys → userStories / agentTasks.taskCluster, spec.md requirements → userStories / FR / SC / layer / NFR ids.',
+        prompt: `You audit the OpenSpec change folder for cross-references back to the source Plan JSON. Inputs: a Plan plus the five markdown files produced by \`buildOpenSpecFileList(plan)\`. The only valid join key for proposal/design/specs is \`plan.meta.featureSlug\` — do NOT try to infer it from filenames (the slug may contain hyphens that look like extra capability suffixes). Walk these cross-references:
+
+1. proposal.md → plan.userStories:
+   - Every \`- **USxxx** — <title>\` line under \`## Impact\` → "Affected user stories" block MUST reference a real \`plan.userStories[*].id\`. Flag references whose ids do not exist in the plan.
+   - The number of \`**USxxx**\` entries MUST equal \`plan.userStories.length\` (allow the renderer fallback line only when \`plan.userStories\` is empty/missing — flag only mismatches of 2 or more).
+2. design.md → plan.architectureLayers:
+   - Each \`### Layer: <name>\` heading MUST correspond to exactly one \`plan.architectureLayers[*]\` entry by its \`name\` field. Flag \`### Layer: <unknown>\` headings AND flag \`plan.architectureLayers[*].name\` values that never appear as headings under \`## Decisions\`.
+3. tasks.md → plan.userStories + plan.agentTasks:
+   - Group headings derived from \`us:<id>\` keys (renderer emits these) MUST reference a real \`plan.userStories[*].id\`. Flag groups whose id portion is not present in \`plan.userStories[*].id\`.
+   - Group headings derived from \`cluster:<key>\` keys MUST reference a real \`plan.agentTasks[*].taskCluster\`. Flag missing cluster ids.
+   - The fallback \`## 1. Bootstrap\` group is allowed only when \`plan.agentTasks\` is empty or missing; flag its presence otherwise.
+4. feature spec (specs/<slug>/spec.md) → plan.userStories:
+   - Every \`### Requirement: <id> <label>\` heading MUST use an id that matches \`plan.userStories[*].id\` (the renderer emits \`USxxx\`). Flag mismatches.
+5. architecture spec (specs/<slug>-architecture/spec.md) → plan fields:
+   - \`### Requirement: FR-<n>\` ids MUST correspond to real \`plan.functionalRequirements[*].id\` entries (renderer emits \`FR-001\`, \`FR-002\`, …). Flag \`FR-<unknown>\` patterns.
+   - \`### Requirement: SC-<n>\` ids MUST correspond to real \`plan.successCriteria[*].id\` entries.
+   - \`### Requirement: layer-<layerId>\` ids MUST correspond to real \`plan.architectureLayers[*].id\` entries. Flag \`layer-<unknown>\` patterns.
+   - \`### Requirement: nfr-<n>\` ids MUST correspond to real \`plan.nonFunctionalRequirements[*].id\` entries.
+
+Output a JSON array of findings shaped as:
+
+\`\`\`json
+{
+  "severity": "error" | "warning",
+  "path": "openspec/changes/<slug>/specs/<slug>/spec.md",
+  "message": "\\u0060### Requirement: US999\\u0060 references a user story id not present in plan.userStories.",
+  "fix": "Either add US999 to plan.userStories or remove the orphan requirement heading."
+}
+\`\`\`
+
+Use \`error\` for ids that do not exist in the plan (a downstream renderer would silently drop them). Use \`warning\` for stylistic drift (extra prose duplication, reordered id sequences that still resolve). Order findings by \`path\` then \`severity\` (errors first). Do NOT modify the change folder — only report.`,
+      },
+    ],
+  },
 ];
