@@ -84,10 +84,10 @@ describe('feature-slug', () => {
   });
 
   describe('exportBaseName', () => {
-    it('builds the <NNN-slug> base name without an extension', () => {
+    it('returns the feature slug without an extension', () => {
       expect(
         exportBaseName({ meta: { featureNumber: 2, featureSlug: 'news-portal' } }),
-      ).toBe('002-news-portal');
+      ).toBe('news-portal');
     });
   });
 });

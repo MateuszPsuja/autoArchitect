@@ -268,7 +268,7 @@ export class ExportPdfComponent {
         if (result.preflightWarning) {
           this.lastPreflightWarning.set(result.preflightWarning);
         }
-        triggerDownload(result.blob, `${exportBaseName(plan)}-spec.pdf`);
+        triggerDownload(result.blob, `${exportBaseName(plan)}-plan.pdf`);
         clearPdfExportReloadFlag();
       } else {
         this.lastError.set(stripViteCacheUrl(result.error.message));

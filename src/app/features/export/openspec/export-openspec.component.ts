@@ -120,7 +120,7 @@ export class ExportOpenspecComponent {
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     try {
       const blob = await this.exportService.buildZip(plan, this.store.markdownOverrides());
-      triggerDownload(blob, `${exportBaseName(plan)}-openspec.zip`);
+      triggerDownload(blob, `${exportBaseName(plan)}-OpenSpec.zip`);
     } finally {
       this.exportingZip.set(false);
     }

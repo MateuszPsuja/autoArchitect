@@ -33,5 +33,5 @@ export function featureFolder(plan: {
 export function exportBaseName(plan: {
   meta: { featureNumber: number; featureSlug: string };
 }): string {
-  return branchName(plan);
+  return plan.meta.featureSlug;
 }

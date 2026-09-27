@@ -130,7 +130,7 @@ export class ExportZipComponent {
     this.exportingZip.set(true);
     try {
       const blob = await this.exportService.buildZip(plan, this.store.markdownOverrides());
-      triggerDownload(blob, `${exportBaseName(plan)}-docs.zip`);
+      triggerDownload(blob, `${exportBaseName(plan)}-Spec-kit.zip`);
     } finally {
       this.exportingZip.set(false);
     }
