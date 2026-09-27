@@ -71,11 +71,20 @@ import { startWith } from 'rxjs';
           <div class="field api-key-field">
             <label for="apiKey" class="field-label">{{ apiKeyLabel() }}</label>
             <div class="api-key-controls">
+              <!--
+                Hidden dummy text input with autocomplete="off" prevents Chrome from
+                pairing the masked API-key field below with a (non-existent) login form
+                and triggering the "Save password?" prompt. The API key is not a
+                password — it lives in localStorage and is unrelated to Chrome's
+                credential manager.
+              -->
               <input
                 type="text"
                 name="username"
+                aria-hidden="true"
+                tabindex="-1"
+                autocomplete="off"
                 [value]="usernameFor()"
-                autocomplete="username"
                 hidden
               />
               <p-password
@@ -84,7 +93,7 @@ import { startWith } from 'rxjs';
                 [attr.aria-label]="apiKeyLabel()"
                 [feedback]="false"
                 [toggleMask]="true"
-                autocomplete="current-password"
+                autocomplete="off"
                 styleClass="w-full"
                 inputStyleClass="w-full"
               />

@@ -849,15 +849,18 @@ describe('ProviderConfigComponent', () => {
       expect(component.usernameFor()).toBe('autoArchitect_claude');
     });
 
-    it('renders the provider-specific username into the hidden autocomplete input', () => {
+    it('renders the provider-specific username into a hidden off-autocomplete input (so Chrome does not offer to save the API key as a password)', () => {
       const { fixture } = setup({ config: buildConfig('claude') });
       fixture.detectChanges();
       const input = fixture.nativeElement.querySelector(
-        'input[name="username"][autocomplete="username"]',
+        'input[name="username"][autocomplete="off"]',
       ) as HTMLInputElement | null;
       expect(input).not.toBeNull();
       expect(input!.value).toBe('autoArchitect_claude');
       expect(input!.hidden).toBe(true);
+      // Must NOT be exposed to assistive tech or keyboard tab order
+      expect(input!.getAttribute('aria-hidden')).toBe('true');
+      expect(input!.getAttribute('tabindex')).toBe('-1');
     });
   });
 });
