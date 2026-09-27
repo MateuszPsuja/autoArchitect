@@ -36,11 +36,11 @@ type ExportTab = 'zip' | 'openspec' | 'json' | 'pdf';
           <p-tablist>
             <p-tab value="zip">
               <i class="pi pi-file-o"></i>
-              Architecture
+              SpecKit
             </p-tab>
             <p-tab value="openspec">
               <i class="pi pi-sitemap"></i>
-              Planning
+              OpenSpec
             </p-tab>
             <p-tab value="json">
               <i class="pi pi-file-export"></i>

@@ -10,7 +10,7 @@ import { exportBaseName } from '../../../core/feature-slug';
   imports: [ButtonModule],
   template: `
     <section class="card export-shell" aria-labelledby="export-openspec-heading">
-      <h3 id="export-openspec-heading">Planning Export (.zip)</h3>
+      <h3 id="export-openspec-heading">OpenSpec Export (.zip)</h3>
 
       <ul class="file-list">
         @for (file of files(); track file.path) {
@@ -120,7 +120,7 @@ export class ExportOpenspecComponent {
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     try {
       const blob = await this.exportService.buildZip(plan, this.store.markdownOverrides());
-      triggerDownload(blob, `${exportBaseName(plan)}-planning.zip`);
+      triggerDownload(blob, `${exportBaseName(plan)}-openspec.zip`);
     } finally {
       this.exportingZip.set(false);
     }
