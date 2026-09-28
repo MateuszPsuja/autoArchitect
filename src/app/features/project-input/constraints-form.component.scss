@@ -1,0 +1,15 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.field-hint {
+  color: var(--text-color-secondary);
+  font-size: 0.85rem;
+}
+
+textarea.p-textarea {
+  min-height: 6rem !important;
+}

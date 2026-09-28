@@ -1,0 +1,100 @@
+{
+  "extends": [
+    "stylelint-config-standard-scss"
+  ],
+  "rules": {
+    "selector-class-pattern": [
+      "^[a-z][a-z0-9-]*(__[a-z0-9-]+)?(--[a-z0-9-]+)?$",
+      {
+        "message": "Class names must be kebab-case with optional BEM __modifier and --variant"
+      }
+    ],
+    "declaration-property-value-disallowed-list": [
+      {
+        "border-radius": ["/var\\(--radius-/"]
+      }
+    ],
+    "declaration-no-important": null,
+    "property-disallowed-list": ["word-break"],
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": [
+          "mixin",
+          "include",
+          "use",
+          "forward",
+          "if",
+          "else",
+          "for",
+          "each",
+          "extend",
+          "function",
+          "return",
+          "tailwind",
+          "apply",
+          "layer",
+          "screen",
+          "variants",
+          "responsive"
+        ]
+      }
+    ],
+    "scss/at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": [
+          "tailwind",
+          "apply",
+          "layer",
+          "screen",
+          "variants",
+          "responsive"
+        ]
+      }
+    ],
+    "scss/dollar-variable-pattern": null,
+    "no-descending-specificity": null,
+    "selector-pseudo-class-no-unknown": [
+      true,
+      {
+        "ignorePseudoClasses": ["deep", "global", "host"]
+      }
+    ],
+    "selector-pseudo-element-no-unknown": [
+      true,
+      {
+        "ignorePseudoElements": ["ng-deep"]
+      }
+    ],
+    "selector-type-no-unknown": [
+      true,
+      {
+        "ignoreTypes": ["/^p-/", "/^app-/", "router-outlet"]
+      }
+    ],
+    "alpha-value-notation": "number",
+    "color-function-notation": null,
+    "color-function-alias-notation": null,
+    "media-feature-range-notation": "prefix",
+    "declaration-block-no-redundant-longhand-properties": null,
+    "font-family-name-quotes": null,
+    "custom-property-empty-line-before": null,
+    "value-keyword-case": null,
+    "shorthand-property-no-redundant-values": null,
+    "declaration-block-single-line-max-declarations": null
+  },
+  "overrides": [
+    {
+      "files": ["src/styles/**/*.scss"],
+      "rules": {
+        "declaration-property-value-disallowed-list": null
+      }
+    }
+  ],
+  "ignoreFiles": [
+    "src/styles.scss.tmp",
+    "node_modules/**",
+    "dist/**"
+  ]
+}

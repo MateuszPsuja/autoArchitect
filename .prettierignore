@@ -1,0 +1,7 @@
+dist/
+node_modules/
+.angular/
+*.min.css
+*.min.js
+src/assets/
+public/

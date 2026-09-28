@@ -34,73 +34,7 @@ import { exportBaseName } from '../../../core/feature-slug';
       </div>
     </section>
   `,
-  styles: `
-    .export-shell {
-      display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
-    }
-
-    .export-shell h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .subtitle {
-      color: var(--text-color-secondary);
-      font-size: 0.875rem;
-      margin: 0;
-    }
-
-    .override-note {
-      background: var(--surface-100);
-      border-left: 3px solid var(--primary-color);
-      color: var(--text-color-secondary);
-      font-size: 0.8rem;
-      margin: 0;
-      padding: 0.5rem 0.75rem;
-    }
-
-    .file-list {
-      display: grid;
-      gap: 0;
-      list-style: none;
-      margin: 0;
-      max-height: 300px;
-      overflow: auto;
-      padding: 0;
-    }
-
-    .file-list li {
-      align-items: center;
-      border-bottom: 1px solid var(--surface-border);
-      display: flex;
-      justify-content: space-between;
-      padding: 0.4rem 0;
-    }
-
-    .file-list-empty {
-      color: var(--text-color-secondary);
-      font-style: italic;
-    }
-
-    .file-path {
-      color: var(--text-color-secondary);
-      font-size: 0.8rem;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .export-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-  `,
+  styleUrl: './export-openspec.component.scss',
 })
 export class ExportOpenspecComponent {
   protected readonly store = inject(ProjectStore);

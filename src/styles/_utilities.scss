@@ -1,0 +1,23 @@
+.sr-only {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.text-muted {
+  color: var(--text-color-secondary);
+}
+
+.field-label {
+  color: var(--text-color);
+  font-size: var(--fs-base);
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+  display: block;
+}

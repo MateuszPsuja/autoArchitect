@@ -1,0 +1,101 @@
+.workspace-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.workspace-header {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+
+.subtitle {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.config-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.planner-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.refinement-error {
+  align-items: flex-start;
+  background: var(--surface-ground);
+  border: 1px solid #ef4444;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.refinement-error-info {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.refinement-error .eyebrow {
+  color: #ef4444;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.refinement-error h3 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.refinement-error-message {
+  color: var(--text-color);
+  font-size: 0.9rem;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.refinement-error-hint {
+  color: var(--text-color-secondary);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.refinement-error-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .workspace-header {
+    flex-direction: column;
+  }
+
+  .workspace-stack {
+    padding: 1rem;
+  }
+}

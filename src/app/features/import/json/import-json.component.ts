@@ -50,34 +50,7 @@ const FILE_SIZE_LIMIT = 2_000_000;
 
     <p-confirmDialog />
   `,
-  styles: `
-    .import-shell {
-      display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
-    }
-
-    .import-shell h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .subtitle {
-      color: var(--text-color-secondary);
-      font-size: 0.875rem;
-      margin: 0;
-    }
-
-    .import-source {
-      display: grid;
-      gap: 0.5rem;
-    }
-
-    .import-error {
-      margin-top: 0.25rem;
-    }
-  `,
+  styleUrl: './import-json.component.scss',
 })
 export class ImportJsonComponent {
   private readonly store = inject(ProjectStore);

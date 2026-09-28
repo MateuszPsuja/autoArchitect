@@ -1,0 +1,51 @@
+:root {
+  --topbar-height: 4rem;
+  --sidebar-width: 17rem;
+
+  --surface-ground: #09090b;
+  --surface-section: #18181b;
+  --surface-card: #18181b;
+  --surface-overlay: #18181b;
+  --surface-border: #27272a;
+  --surface-hover: rgba(255, 255, 255, 0.04);
+
+  --text-color: rgba(255, 255, 255, 0.87);
+  --text-color-secondary: rgba(255, 255, 255, 0.6);
+
+  --primary-color: #10b981;
+  --primary-color-text: #fff;
+
+  --border-radius: 0;
+
+  --card-shadow: none;
+  --card-shadow-hover: none;
+  --topbar-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.06);
+
+  --bg-base: var(--surface-ground);
+  --bg-surface: var(--surface-card);
+  --bg-elevated: var(--surface-hover);
+  --border: var(--surface-border);
+  --text-primary: var(--text-color);
+  --text-secondary: var(--text-color-secondary);
+  --text-muted: #64748b;
+
+  --shadow-panel: var(--card-shadow);
+
+  --warn-color: #f59e0b;
+  --warn-color-dim: rgba(245, 158, 11, 0.12);
+  --warn-color-border: rgba(245, 158, 11, 0.35);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --fs-xs: 0.7rem;
+  --fs-sm: 0.8rem;
+  --fs-md: 0.875rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.1rem;
+  --fs-xl: 1.25rem;
+}

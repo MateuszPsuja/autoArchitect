@@ -76,50 +76,7 @@ import { ExportPdfStatsComponent } from './export-pdf-stats.component';
       }
     </section>
   `,
-  styles: `
-    .export-shell {
-      display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
-    }
-
-    .export-shell h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .subtitle {
-      color: var(--text-color-secondary);
-      font-size: 0.875rem;
-      margin: 0;
-    }
-
-    .export-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-
-    .disabled-reason {
-      color: var(--text-color-secondary);
-      font-size: 0.8125rem;
-      margin: 0;
-    }
-
-    .error-message {
-      color: var(--red-700, #b91c1c);
-      background: var(--red-50, #fef2f2);
-      border: 1px solid var(--red-200, #fecaca);
-      border-radius: 4px;
-      padding: 0.5rem 0.75rem;
-      font-size: 0.8125rem;
-      margin: 0;
-      white-space: pre-wrap;
-      font-family: inherit;
-    }
-  `,
+  styleUrl: './export-pdf.component.scss',
 })
 export class ExportPdfComponent {
   protected readonly store = inject(ProjectStore);

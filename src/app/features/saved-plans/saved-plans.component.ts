@@ -70,7 +70,6 @@ import { isDemoPlan } from '../../core/demo-plan/demo-plan.loader';
       display: inline-block;
       padding: 0.15rem 0.5rem;
       border: 1px solid var(--surface-border);
-      border-radius: var(--radius-sm);
     }
     .actions-cell {
       display: inline-flex;

@@ -24,23 +24,7 @@ import { TextareaModule } from 'primeng/textarea';
       }
     </div>
   `,
-  styles: `
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      width: 100%;
-    }
-
-    .field-hint {
-      color: var(--text-color-secondary);
-      font-size: 0.85rem;
-    }
-
-    textarea.p-textarea {
-      min-height: 6rem !important;
-    }
-  `,
+  styleUrl: './constraints-form.component.scss',
 })
 export class ConstraintsFormComponent {
   readonly inputId = input.required<string>();

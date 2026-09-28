@@ -44,11 +44,7 @@ type ConfigTab = 'provider' | 'snapshot' | 'clear';
       </p-tabpanels>
     </p-tabs>
   `,
-  styles: `
-    :host {
-      display: block;
-    }
-  `,
+  styleUrl: './config-page.component.scss',
 })
 export class ConfigPageComponent {
   protected readonly active = signal<ConfigTab>('provider');

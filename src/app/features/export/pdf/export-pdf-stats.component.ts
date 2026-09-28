@@ -74,60 +74,7 @@ import { TokenUsage } from '../../../core/token-usage.model';
       </section>
     }
   `,
-  styles: `
-    .pdf-stats {
-      background: var(--surface-ground);
-      border: 1px solid var(--surface-border);
-      border-radius: var(--radius-md);
-      display: grid;
-      gap: 0.5rem;
-      padding: 0.875rem;
-    }
-
-    .pdf-stats--active {
-      border-color: var(--primary-color);
-    }
-
-    .pdf-stats-label {
-      align-items: center;
-      color: var(--text-muted);
-      display: flex;
-      font-size: 0.72rem;
-      font-weight: 600;
-      gap: 0.4rem;
-      letter-spacing: 0.08em;
-      margin: 0;
-      text-transform: uppercase;
-    }
-
-    .pdf-stats-spinner {
-      color: var(--primary-color);
-      display: inline-flex;
-    }
-
-    .pdf-stats-grid {
-      display: grid;
-      gap: 0.4rem;
-    }
-
-    .pdf-stats-row {
-      align-items: baseline;
-      display: flex;
-      gap: 0.75rem;
-      justify-content: space-between;
-    }
-
-    .pdf-stats-key {
-      color: var(--text-color-secondary);
-      font-size: 0.85rem;
-    }
-
-    .pdf-stats-value {
-      font-size: 0.9rem;
-      font-variant-numeric: tabular-nums;
-      font-weight: 600;
-    }
-  `,
+  styleUrl: './export-pdf-stats.component.scss',
 })
 export class ExportPdfStatsComponent {
   readonly stats = input<TokenUsage | null>(null);

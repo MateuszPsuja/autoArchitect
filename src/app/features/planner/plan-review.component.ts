@@ -55,19 +55,6 @@ import { PlanFieldsEditorComponent } from './plan-fields-editor.component';
       </p-tabpanels>
     </p-tabs>
   `,
-  styles: `
-    /* Tab chrome (background, border, padding, hover/active state,
-       flush tab items) is declared globally in styles.scss and shared
-       with the nested sub-tabs in ArchitectureTreeComponent.  This
-       styles block only carries layout choices that are unique to the
-       outer 5-tab strip. */
-
-    .review-pane {
-      display: grid;
-      gap: 1.5rem;
-      padding-top: 1rem;
-      min-height: 0;
-    }
-  `,
+  styleUrl: './plan-review.component.scss',
 })
 export class PlanReviewComponent {}

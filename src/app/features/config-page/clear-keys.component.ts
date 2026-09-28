@@ -42,57 +42,7 @@ import { LLM_PROVIDERS } from '../../core/llm-provider';
       <p-confirmDialog />
     </section>
   `,
-  styles: `
-    :host {
-      display: block;
-    }
-
-    .card {
-      max-width: none;
-      width: 100%;
-    }
-
-    .card-header {
-      align-items: center;
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 1.25rem;
-    }
-
-    .card-header h2 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin: 0;
-    }
-
-    .help-text {
-      color: var(--text-color-secondary);
-      font-size: 0.875rem;
-      margin: 0 0 0.75rem;
-    }
-
-    .count {
-      color: var(--text-color-secondary);
-      font-size: 0.8125rem;
-      font-variant-numeric: tabular-nums;
-      margin: 0 0 1rem;
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-
-    .success-message {
-      margin-top: 1rem;
-    }
-
-    :host ::ng-deep .success-message .p-message-icon,
-    :host ::ng-deep .success-message .p-message-close {
-      display: none !important;
-    }
-  `,
+  styleUrl: './clear-keys.component.scss',
 })
 export class ClearKeysComponent {
   private readonly store = inject(ProjectStore);

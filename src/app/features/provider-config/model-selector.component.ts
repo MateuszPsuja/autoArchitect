@@ -48,42 +48,7 @@ import { startWith } from 'rxjs';
       />
     </div>
   `,
-  styles: `
-    :host {
-      display: contents;
-    }
-
-    .field-label {
-      color: var(--text-color);
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-
-    .model-row {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .model-row p-autoComplete {
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-
-    :host ::ng-deep .reload-button {
-      flex: 0 0 auto;
-    }
-
-    :host ::ng-deep .model-select--ready.p-autocomplete .p-autocomplete-input,
-    :host ::ng-deep .model-select--ready.p-autocomplete .p-autocomplete-input:hover,
-    :host ::ng-deep .model-select--ready.p-autocomplete .p-autocomplete-input:focus,
-    :host ::ng-deep .model-select--ready.p-autocomplete.p-autocomplete-dd .p-autocomplete-input,
-    :host ::ng-deep .model-select--ready.p-autocomplete.p-autocomplete-dd .p-autocomplete-input:hover,
-    :host ::ng-deep .model-select--ready.p-autocomplete.p-autocomplete-dd .p-autocomplete-input:focus {
-      border-color: var(--green-500, #22c55e);
-      box-shadow: 0 0 0 1px var(--green-500, #22c55e);
-    }
-  `,
+  styleUrl: './model-selector.component.scss',
 })
 export class ModelSelectorComponent implements OnInit {
   readonly id = input('model');

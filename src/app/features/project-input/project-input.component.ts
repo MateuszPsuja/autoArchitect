@@ -98,30 +98,7 @@ import { ContextAttachmentsComponent } from './context-attachments.component';
       </div>
     </form>
   `,
-  styles: `
-    :host {
-      display: block;
-    }
-
-    .form {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    .actions-row {
-      align-items: center;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      justify-content: flex-end;
-      margin-top: 0.5rem;
-    }
-
-    textarea {
-      min-height: 6rem;
-    }
-  `,
+  styleUrl: './project-input.component.scss',
 })
 export class ProjectInputComponent {
   private readonly fb = inject(FormBuilder);

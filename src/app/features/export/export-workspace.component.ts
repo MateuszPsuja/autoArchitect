@@ -73,42 +73,7 @@ type ExportTab = 'zip' | 'openspec' | 'json' | 'pdf';
       }
     </section>
   `,
-  styles: `
-    .workspace-stack {
-      display: grid;
-      gap: 1.25rem;
-    }
-
-    .workspace-header {
-      align-items: flex-start;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      justify-content: space-between;
-    }
-
-    h2 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin: 0 0 0.25rem;
-    }
-
-    .subtitle {
-      color: var(--text-color-secondary);
-      font-size: 0.875rem;
-      margin: 0;
-    }
-
-    @media (max-width: 768px) {
-      .workspace-header {
-        flex-direction: column;
-      }
-
-      .workspace-stack {
-        padding: 1rem;
-      }
-    }
-  `,
+  styleUrl: './export-workspace.component.scss',
 })
 export class ExportWorkspaceComponent {
   protected readonly store = inject(ProjectStore);

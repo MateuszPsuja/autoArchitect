@@ -1,0 +1,41 @@
+.export-shell {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.export-shell h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.disabled-reason {
+  color: var(--text-color-secondary);
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+.error-message {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 36%, var(--surface-border));
+  color: #ef4444;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  white-space: pre-wrap;
+}

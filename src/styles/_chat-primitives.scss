@@ -1,0 +1,24 @@
+.answer-label {
+  color: var(--text-color-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.answer-input {
+  background: var(--surface-ground);
+  border: 1px solid var(--surface-border);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  resize: vertical;
+  width: 100%;
+}
+
+.question-text {
+  color: var(--text-color);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  line-height: 1.5;
+  margin: 0;
+}

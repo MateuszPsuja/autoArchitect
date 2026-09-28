@@ -74,64 +74,7 @@ import { ProjectStore } from '../../core/project.store';
       </div>
     }
   `,
-  styles: `
-    :host {
-      display: block;
-    }
-
-    .stats-section {
-      background: var(--surface-ground);
-      border: 1px solid var(--surface-border);
-      border-radius: var(--radius-md);
-      padding: 0.875rem;
-    }
-
-    .stats-label {
-      color: var(--text-muted);
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      margin: 0;
-      text-transform: uppercase;
-    }
-
-    .stats-header {
-      align-items: center;
-      display: flex;
-      gap: 0.75rem;
-      justify-content: space-between;
-      margin-bottom: 0.5rem;
-    }
-
-    .stats-grid {
-      column-gap: 1.5rem;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      row-gap: 0.4rem;
-    }
-
-    .stats-row {
-      align-items: baseline;
-      display: flex;
-      gap: 0.75rem;
-      justify-content: space-between;
-    }
-
-    .stats-key {
-      color: var(--text-muted);
-      font-size: 0.8rem;
-    }
-
-    .stats-value {
-      font-feature-settings: 'tnum';
-      font-variant-numeric: tabular-nums;
-      font-weight: 500;
-    }
-
-    .stats-row-warning .stats-value {
-      color: var(--orange-500, #f59e0b);
-    }
-  `,
+  styleUrl: './generate-plan-stats.component.scss',
 })
 export class GeneratePlanStatsComponent {
   private readonly store = inject(ProjectStore);

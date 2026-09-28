@@ -28,32 +28,7 @@ import { exportBaseName } from '../../../core/feature-slug';
       </div>
     </section>
   `,
-  styles: `
-    .export-shell {
-      display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
-    }
-
-    .export-shell h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .subtitle {
-      color: var(--text-color-secondary);
-      font-size: 0.875rem;
-      margin: 0;
-    }
-
-    .export-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-  `,
+  styleUrl: './export-json.component.scss',
 })
 export class ExportJsonComponent {
   protected readonly store = inject(ProjectStore);

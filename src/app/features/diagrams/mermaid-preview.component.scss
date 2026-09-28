@@ -1,0 +1,103 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.diagram {
+  background: #fff;
+  border: 1px solid var(--surface-border);
+  box-sizing: border-box;
+  display: block;
+  padding: 1.25rem 1.5rem;
+  width: 100%;
+}
+
+.viewport {
+  align-items: center;
+  cursor: grab;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  width: 100%;
+}
+
+.viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.viewport--fallback {
+  min-height: 200px;
+}
+
+.stage {
+  display: inline-block;
+  height: max-content;
+  transform-origin: 0 0;
+  width: max-content;
+  will-change: transform;
+}
+
+.stage > div {
+  display: block;
+  width: auto !important;
+}
+
+.zoom-controls {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  pointer-events: auto;
+  position: absolute;
+  right: 0.5rem;
+  top: 0.5rem;
+  z-index: 5;
+}
+
+.zoom-btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-color);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  min-width: 2rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.zoom-btn:hover {
+  background: var(--surface-hover);
+}
+
+.zoom-btn--label {
+  min-width: 3.25rem;
+}
+
+.viewport ::ng-deep svg {
+  display: block;
+  max-width: none !important;
+}
+
+.warning {
+  background: var(--warn-color-dim);
+  border: 1px solid var(--warn-color-border);
+  color: var(--warn-color);
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .zoom-controls {
+    right: 0.25rem;
+    top: 0.25rem;
+  }
+}

@@ -1,0 +1,49 @@
+.p-inputtext, .p-textarea {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  color: var(--text-color);
+  border-radius: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--fs-base);
+  font-family: inherit;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.p-inputtext:enabled:hover, .p-textarea:enabled:hover {
+  border-color: color-mix(in srgb, var(--primary-color) 50%, var(--surface-border));
+}
+
+.p-inputtext:enabled:focus, .p-textarea:enabled:focus {
+  outline: 0 none;
+  outline-offset: 0;
+  box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--primary-color) 20%, transparent);
+  border-color: var(--primary-color);
+}
+
+.p-fluid .p-inputtext, .p-fluid .p-textarea, .w-full {
+  width: 100%;
+}
+
+.p-tab.p-tab-active {
+  color: var(--primary-color) !important;
+  font-weight: 600;
+}
+
+.p-tabpanels {
+  background: transparent;
+  padding: 0 !important;
+}
+
+.p-tablist {
+  padding-inline: 0 !important;
+}
+
+.p-tabpanel,
+.p-tabs-panel {
+  padding-inline: 0 !important;
+}
+
+.error-icon {
+  display: none !important;
+}

@@ -1,0 +1,40 @@
+.card {
+  background-color: var(--surface-card);
+  padding: var(--space-5);
+  border-radius: 0;
+  border: 1px solid var(--surface-border);
+  box-shadow: none;
+}
+
+.layer-tag {
+  border: 1px solid var(--surface-border);
+  border-radius: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.55rem;
+  text-transform: uppercase;
+}
+
+.layer-tag--frontend {
+  background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--primary-color) 35%, transparent);
+  color: var(--primary-color);
+}
+
+.layer-tag--backend {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+.layer-tag--shared {
+  background: rgba(250, 204, 21, 0.12);
+  border-color: rgba(250, 204, 21, 0.35);
+  color: #facc15;
+}
+
+.layer-tag--infrastructure {
+  background: var(--surface-hover);
+  color: var(--text-color-secondary);
+}
