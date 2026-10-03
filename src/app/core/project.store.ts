@@ -28,6 +28,7 @@ import {
 import { StateSnapshot } from './state-snapshot.model';
 import { getDemoPlan } from './demo-plan/demo-plan.loader';
 import { PERSIST_DEBOUNCE_MS, PLANNER_INPUT_STORAGE_KEY } from './persistence.constants';
+import { safeGetItem, safeRemoveItem } from './storage.utils';
 import { AuditFinding } from './audit-runner.service';
 import { DiagramAuditReport, DiagramAuditService } from './diagram-audit.service';
 import {
@@ -1125,27 +1126,8 @@ export const ProjectStore = signalStore(
 );
 
 function hydrateFromLocalStorage(store: any): void {
-  const safeGet = (key: string): string | null => {
-    try {
-      if (typeof globalThis !== 'undefined' && globalThis.localStorage) {
-        return globalThis.localStorage.getItem(key);
-      }
-    } catch {
-
-    }
-    return null;
-  };
-  const safeRemove = (key: string): void => {
-    try {
-      if (typeof globalThis !== 'undefined' && globalThis.localStorage) {
-        globalThis.localStorage.removeItem(key);
-      }
-    } catch {
-
-    }
-  };
-  const planResult = hydratePlan(safeGet(PLAN_STORAGE_KEY));
-  if (planResult.reason === 'invalid') safeRemove(PLAN_STORAGE_KEY);
+  const planResult = hydratePlan(safeGetItem(PLAN_STORAGE_KEY));
+  if (planResult.reason === 'invalid') safeRemoveItem(PLAN_STORAGE_KEY);
   if (planResult.plan) {
     store.setPlan(planResult.plan, planResult.tokenStats);
     const plan = planResult.plan as Plan;
@@ -1162,36 +1144,36 @@ function hydrateFromLocalStorage(store: any): void {
     }
   }
 
-  const configResult = hydrateConfig(safeGet(CONFIG_STORAGE_KEY));
-  if (configResult.reason === 'invalid') safeRemove(CONFIG_STORAGE_KEY);
+  const configResult = hydrateConfig(safeGetItem(CONFIG_STORAGE_KEY));
+  if (configResult.reason === 'invalid') safeRemoveItem(CONFIG_STORAGE_KEY);
   if (configResult.config) {
     patchState(store, { providerApiKeys: configResult.providerApiKeys });
     store.setConfig(configResult.config);
   }
 
-  const savedPlansResult = hydrateSavedPlans(safeGet(SAVED_PLANS_STORAGE_KEY));
-  if (savedPlansResult.reason === 'invalid') safeRemove(SAVED_PLANS_STORAGE_KEY);
+  const savedPlansResult = hydrateSavedPlans(safeGetItem(SAVED_PLANS_STORAGE_KEY));
+  if (savedPlansResult.reason === 'invalid') safeRemoveItem(SAVED_PLANS_STORAGE_KEY);
   store.setSavedPlans(savedPlansResult.savedPlans);
 
 
 
-  const rawPlannerInput = safeGet(PLANNER_INPUT_STORAGE_KEY);
+  const rawPlannerInput = safeGetItem(PLANNER_INPUT_STORAGE_KEY);
   if (rawPlannerInput) {
     try {
       const parsed = JSON.parse(rawPlannerInput) as GeneratePromptInput;
       if (parsed && typeof parsed.title === 'string' && typeof parsed.idea === 'string') {
         patchState(store, { pendingInput: parsed });
       } else {
-        safeRemove(PLANNER_INPUT_STORAGE_KEY);
+        safeRemoveItem(PLANNER_INPUT_STORAGE_KEY);
       }
     } catch {
-      safeRemove(PLANNER_INPUT_STORAGE_KEY);
+      safeRemoveItem(PLANNER_INPUT_STORAGE_KEY);
     }
   }
 
 
 
-  const dismissed = safeGet(DEMO_DISMISSED_KEY) === '1';
+  const dismissed = safeGetItem(DEMO_DISMISSED_KEY) === '1';
   let saved = seedDemoPlan(store.savedPlans(), dismissed);
   saved = refreshDemoPlanEntries(saved);
   if (saved.length !== store.savedPlans().length || saved !== store.savedPlans()) {

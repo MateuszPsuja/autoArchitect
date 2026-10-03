@@ -91,7 +91,6 @@ export function scanForbiddenTokens(files: ReadonlyArray<MarkdownFile>): Finding
 
 export function scanChecklistConsistency(plan: Plan, checklistMd: string): Finding[] {
   const findings: Finding[] = [];
-  if (!checklistMd) return findings;
 
   const claimed = /All (\d+) agent task\(s\) carry/.exec(checklistMd);
   const actual = plan.agentTasks?.length ?? 0;

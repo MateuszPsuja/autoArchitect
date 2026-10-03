@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Plan } from './plan.schema';
+import { ALLOWED_MERMAID_TYPE_SET } from './mermaid-constants';
 
 export type AuditSeverity = 'error' | 'warning' | 'info';
 
@@ -9,15 +10,6 @@ export interface AuditFinding {
   message: string;
   fix: string;
 }
-
-const ALLOWED_MERMAID_TYPES = new Set([
-  'flowchart',
-  'graph',
-  'sequencediagram',
-  'classdiagram',
-  'statediagram-v2',
-  'erdiagram',
-]);
 
 const DIAGRAM_TYPE_INTENT: Record<string, ReadonlyArray<string>> = {
   mermaidDiagram: ['flowchart', 'graph'],
@@ -154,7 +146,7 @@ export class AuditRunner {
       return;
     }
 
-    if (!ALLOWED_MERMAID_TYPES.has(type)) {
+    if (!ALLOWED_MERMAID_TYPE_SET.has(type)) {
       findings.push({
         severity: 'error',
         path,

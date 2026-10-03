@@ -236,7 +236,7 @@ export class SectionRepairRunner {
     return groups;
   }
 
-  static applyGroup(plan: Plan, group: SectionGroup, replacement: unknown): Plan {
+  applyGroup(plan: Plan, group: SectionGroup, replacement: unknown): Plan {
     if (group.kind === 'layer') {
       if (!Array.isArray(replacement)) return plan;
       return replaceLayers(plan, [
@@ -250,7 +250,7 @@ export class SectionRepairRunner {
       ]);
     }
 
-    const write = new PlanSchemaService().replacePlanField(plan, group.path, replacement);
+    const write = this.schemaService.replacePlanField(plan, group.path, replacement);
     return write.ok ? write.plan : plan;
   }
 

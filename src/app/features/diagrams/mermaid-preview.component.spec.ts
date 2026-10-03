@@ -170,11 +170,24 @@ function buildMermaidSvg(intrinsic: IntrinsicState): string {
 let mermaidRenderSpy: ReturnType<typeof vi.spyOn>;
 let lastRenderPromise: Promise<unknown> | null = null;
 
+function NoopResizeObserver(): {
+  observe: () => void;
+  unobserve: () => void;
+  disconnect: () => void;
+} {
+  return {
+    observe: () => undefined,
+    unobserve: () => undefined,
+    disconnect: () => undefined,
+  };
+}
+
 beforeEach(() => {
 
 
 
   lastRenderPromise = null;
+  vi.stubGlobal('ResizeObserver', NoopResizeObserver);
   mermaidRenderSpy = vi
     .spyOn(mermaid, 'render')
     .mockImplementation(((_id: string, _code: string) => {
@@ -190,6 +203,7 @@ beforeEach(() => {
 afterEach(() => {
   mermaidRenderSpy.mockRestore();
   lastRenderPromise = null;
+  vi.unstubAllGlobals();
 });
 
 async function flushRender(
@@ -216,6 +230,18 @@ async function mountPreview(chart: string = SIMPLE_CHART): Promise<{
     imports: [MermaidPreviewComponent],
   }).compileComponents();
   const fixture = TestBed.createComponent(MermaidPreviewComponent);
+  const viewportStub = {
+    width: 1048,
+    height: 1048,
+    x: 0,
+    y: 0,
+    top: 0,
+    left: 0,
+    right: 1048,
+    bottom: 1048,
+    toJSON: () => ({}),
+  } as DOMRect;
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(viewportStub);
   fixture.componentRef.setInput('chart', chart);
   fixture.detectChanges();
 
@@ -224,6 +250,7 @@ async function mountPreview(chart: string = SIMPLE_CHART): Promise<{
   await new Promise((r) => setTimeout(r, 0));
   await fixture.whenStable();
   await flushRender(fixture);
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockRestore();
   return { fixture, component: asTest(fixture.componentInstance) };
 }
 
@@ -371,7 +398,7 @@ describe('MermaidPreviewComponent — zoom buttons re-render the SVG', () => {
     }
   });
 
-  it('fitToFrame() grows a small diagram up to fit the host (no longer shrink-only)', async () => {
+it('fitToFrame() grows a small diagram up to fit the host (no longer shrink-only)', async () => {
     const { component, fixture } = await mountPreview();
     try {
       const host = component.viewportEl()!.nativeElement;

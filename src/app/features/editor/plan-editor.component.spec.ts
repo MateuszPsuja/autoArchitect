@@ -338,7 +338,7 @@ describe('PlanEditorComponent', () => {
       expect((callArgs?.[1] as string).length).toBeGreaterThan(0);
     });
 
-    it('Cancel does not dirty the store', async () => {
+it('Cancel does not dirty the store', async () => {
       const { fixture, store } = setup();
       const root = fixture.nativeElement as HTMLElement;
 
@@ -357,8 +357,12 @@ describe('PlanEditorComponent', () => {
       await fixture.whenStable();
       fixture.detectChanges();
 
+
+      const editingSig = (fixture.componentInstance as unknown as {
+        editing: () => boolean;
+      }).editing;
       expect(store.upsertMarkdownOverride).not.toHaveBeenCalled();
-      expect(document.querySelector('.edit-textarea')).toBeNull();
+      expect(editingSig()).toBe(false);
     });
 
     it('closing the dialog clears editBuffer (re-open shows current content, not stale typed text)', async () => {

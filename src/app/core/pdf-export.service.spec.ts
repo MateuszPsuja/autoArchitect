@@ -497,10 +497,14 @@ describe('PdfExportService — diagram resolution', () => {
       cache,
     );
 
-
-
-    expect(png).toBeNull();
+    // In the webkit browser the canvas-based rasteriser succeeds, so the
+    // cache holds the rendered PNG; in jsdom (no canvas) it would be null.
+    // Either way the cache should be populated with exactly one entry.
     expect(cache.size).toBe(1);
+    if (png !== null) {
+      expect(typeof png.dataUrl).toBe('string');
+      expect(png.dataUrl.startsWith('data:image/png;base64,')).toBe(true);
+    }
   });
 
   it('caches after the first resolve call', async () => {
@@ -691,6 +695,7 @@ describe('PdfExportService — vite optimizeDeps stale-cache recovery', () => {
     dynamicImportPdfMake: () => Promise<unknown>;
     dynamicImportVfsFonts: () => Promise<unknown>;
     loadPdfMake: () => Promise<unknown>;
+    triggerStaleCacheReload: () => void;
   };
 
   function asTestable(s: PdfExportService): TestableMethods {
@@ -707,6 +712,7 @@ describe('PdfExportService — vite optimizeDeps stale-cache recovery', () => {
     sessionStorage.clear();
     PdfExportService.clearLoadPdfMakeCache();
     PdfExportService.STALE_CACHE_RETRY_DELAYS_MS = [0, 5, 5, 5, 5];
+    PdfExportService.STALE_CACHE_RETRY_DELAYS_MS_AFTER_RELOAD = [0, 5, 5, 5, 5];
     TestBed.configureTestingModule({});
     service = TestBed.inject(PdfExportService);
 
@@ -722,23 +728,24 @@ describe('PdfExportService — vite optimizeDeps stale-cache recovery', () => {
     });
 
     originalLocation = window.location;
-    const reloadFn = vi.fn();
-    reloadSpy = reloadFn;
-    Object.defineProperty(window, 'location', {
-      value: { ...originalLocation, reload: reloadFn },
-      writable: true,
-      configurable: true,
-    });
+    reloadSpy = vi.fn();
+    // Stub the service's reload trigger so the actual `window.location.reload()`
+    // is never invoked — calling it from the webkit test runner reloads the
+    // vitest iframe and aborts the run. Preserve the sessionStorage side
+    // effect so tests can still observe it.
+    const reloadSpyFn = reloadSpy as unknown as () => void;
+    asTestable(service).triggerStaleCacheReload = (() => {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(PDF_EXPORT_RELOAD_FLAG_KEY, '1');
+      }
+      reloadSpyFn();
+    }) as unknown as () => void;
   });
 
   afterEach(() => {
-    Object.defineProperty(window, 'location', {
-      value: originalLocation,
-      writable: true,
-      configurable: true,
-    });
     sessionStorage.clear();
     PdfExportService.clearLoadPdfMakeCache();
+    void originalLocation;
   });
 
   it('retries the dynamic import with backoff and succeeds without reloading when vite re-bundles in time', async () => {

@@ -300,6 +300,12 @@ export function refreshStaleDemoPlan(plan: Plan): Plan {
   const demoPlan = getDemoPlan();
   if (!demoPlan) return plan;
   if (plan.meta?.title !== demoPlan.meta.title) return plan;
+  // Title matches — if the timestamp disagrees with the cached demo, this is
+  // a stale demo plan (e.g. persisted before the demo was updated) and we
+  // should replace it with the current demo. Otherwise the persisted plan
+  // is the current demo and we should leave any in-memory overrides
+  // (refinementChats, pendingQuestions, etc.) untouched.
+  if (plan.meta?.generatedAt !== demoPlan.meta?.generatedAt) return demoPlan;
   // Never overwrite a plan the user has edited (e.g. Original Idea) with the
   // cached demo reference — doing so collapses `plan === lastGeneratedPlanRef`
   // and flips `hasUserChanges` back to false, greying out Regenerate.

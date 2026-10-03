@@ -8,6 +8,7 @@ import {
   buildArchitectureBlueprint,
   buildTechStackDiagram,
 } from './architecture-blueprint';
+import { isStaleViteDepsError } from './pdf-constants';
 
 export type PdfMakeContent = unknown;
 export type PdfMakeDocDefinition = {
@@ -34,7 +35,6 @@ const PDF_MERMAID_MAX_SOURCE_DIM = 960;
 const PDF_MERMAID_IMAGE_WIDTH = 460;
 const PDF_MERMAID_IMAGE_MAX_HEIGHT = 720;
 
-const STALE_VITE_DEPS_RE = /\.angular\/cache\/[^?\s]*\/vite\/deps\/[^?\s]*\?v=/;
 export const PDF_EXPORT_RELOAD_FLAG_KEY = 'pdf-export-reload-requested';
 
 export class PdfExportReloadRequested extends Error {
@@ -43,12 +43,6 @@ export class PdfExportReloadRequested extends Error {
     super(message);
     this.name = 'PdfExportReloadRequested';
   }
-}
-
-function isStaleViteDepsError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false;
-  const message = (err as { message?: unknown }).message;
-  return typeof message === 'string' && STALE_VITE_DEPS_RE.test(message);
 }
 
 const PDF_PAGE_WIDTH = 595;

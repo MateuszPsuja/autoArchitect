@@ -1,6 +1,7 @@
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import { AGENTS, Agent, Skill } from './agents.data';
 import { PERSIST_DEBOUNCE_MS, STORAGE_KEYS } from './persistence.constants';
+import { safeGetItem, safeSetItem } from './storage.utils';
 
 const AGENTS_STORAGE_KEY = STORAGE_KEYS.agents;
 
@@ -209,25 +210,4 @@ function persistToLocalStorage(store: any): void {
       persistTimeout = null;
     }
   }, PERSIST_DEBOUNCE_MS);
-}
-
-function safeGetItem(key: string): string | null {
-  try {
-    if (typeof globalThis !== 'undefined' && globalThis.localStorage) {
-      return globalThis.localStorage.getItem(key);
-    }
-  } catch {
-
-  }
-  return null;
-}
-
-function safeSetItem(key: string, value: string): void {
-  try {
-    if (typeof globalThis !== 'undefined' && globalThis.localStorage) {
-      globalThis.localStorage.setItem(key, value);
-    }
-  } catch {
-
-  }
 }

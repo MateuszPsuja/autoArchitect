@@ -144,7 +144,7 @@ describe('SectionRepairRunner', () => {
           description: 'replaced',
         },
       ];
-      const next = SectionRepairRunner.applyGroup(
+      const next = runner.applyGroup(
         minimalPlanFixture,
         { kind: 'layer', id: minimalPlanFixture.architectureLayers[0].id, findings: [] },
         replacement,
@@ -159,7 +159,7 @@ describe('SectionRepairRunner', () => {
           description: 'replaced',
         },
       ];
-      const next = SectionRepairRunner.applyGroup(
+      const next = runner.applyGroup(
         minimalPlanFixture,
         { kind: 'domain', id: minimalPlanFixture.domains[0].id, findings: [] },
         replacement,
@@ -168,7 +168,7 @@ describe('SectionRepairRunner', () => {
     });
 
     it('applyGroup stitches a planField replacement via replacePlanField', () => {
-      const next = SectionRepairRunner.applyGroup(
+      const next = runner.applyGroup(
         minimalPlanFixture,
         {
           kind: 'planField',
@@ -182,7 +182,7 @@ describe('SectionRepairRunner', () => {
     });
 
     it('applyGroup leaves the plan unchanged when the replacement is invalid', () => {
-      const next = SectionRepairRunner.applyGroup(
+      const next = runner.applyGroup(
         minimalPlanFixture,
         {
           kind: 'planField',

@@ -13,6 +13,7 @@ import {
   isModelCompatibleWithProvider,
   resolveBaseUrlWithReason,
 } from './llm-provider';
+import { MiniMaxChatModel } from './minimax-chat-model';
 import { PlannerConfigState } from './project.store';
 
 describe('llm-provider', () => {
@@ -307,7 +308,7 @@ describe('llm-provider', () => {
 
 
 
-      expect(llm.constructor.name).toBe('MiniMaxChatModel');
+      expect(llm).toBeInstanceOf(MiniMaxChatModel);
     });
 
     it('passes the China-region base URL through to MiniMaxChatModel', () => {

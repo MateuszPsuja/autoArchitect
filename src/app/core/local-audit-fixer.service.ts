@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core';
-import mermaid from 'mermaid';
 import {
   buildArchitectureBlueprint,
   buildTechStackDiagram,
@@ -9,6 +8,8 @@ import { Plan } from './plan.schema';
 import { AuditFinding } from './audit-runner.service';
 import { sanitizeMermaidLabels } from './mermaid-label-sanitizer';
 import { normalizeMermaidChart } from '../features/diagrams/mermaid-utils';
+import { ALLOWED_MERMAID_TYPES } from './mermaid-constants';
+import { tryParseMermaid } from './mermaid-parse';
 
 export type SynthesisedDiagramLocation = Extract<
   import('./diagram-audit.service').DiagramLocation,
@@ -20,15 +21,6 @@ export interface LocalFixResult {
 
   fixedPaths: string[];
 }
-
-const ALLOWED_MERMAID_TYPES = [
-  'flowchart',
-  'graph',
-  'sequenceDiagram',
-  'classDiagram',
-  'stateDiagram-v2',
-  'erDiagram',
-] as const;
 
 const DEFAULT_FALLBACK_BY_FIELD: Record<string, string> = {
   mermaidDiagram: 'flowchart TD\n  placeholder["Replace with a real overview diagram"]',
@@ -103,7 +95,7 @@ export class LocalAuditFixer {
 
 
 
-      if (!(await safeParse(normalized))) continue;
+      if (!(await tryParseMermaid(normalized))) continue;
       patches.push({ location: loc, source: normalized });
     }
 
@@ -189,24 +181,6 @@ export class LocalAuditFixer {
 }
 
 const UNSAFE_CHAR_DIAGRAM_TYPES = new Set(['sequencediagram']);
-
-async function safeParse(chart: string): Promise<boolean> {
-  try {
-    const m = mermaid as unknown as { parse?: (s: string) => Promise<unknown> };
-    const parseFn =
-      m.parse ??
-      (mermaid as unknown as { mermaidAPI?: { parse?: (s: string) => Promise<unknown> } })
-        .mermaidAPI?.parse;
-    if (typeof parseFn === 'function') {
-      await parseFn(chart);
-    } else {
-      await mermaid.render(`audit-${Math.random().toString(36).slice(2)}`, chart);
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 interface PathResolution {
 
