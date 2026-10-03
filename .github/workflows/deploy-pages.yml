@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
       - name: Build (production, project-site base href)
         run: npx ng build --base-href=/autoArchitect/ --configuration production
       - name: SPA fallback — copy index.html to 404.html
